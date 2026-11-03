@@ -333,19 +333,20 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
             </div>
 
             <div class="form-group full">
-              <label for="formHorseFoto">Foto del Caballo (URL o selección rápida)</label>
-              <input
-                type="text"
-                id="formHorseFoto"
-                class="form-input"
-                placeholder="https://... o /placeholders/horse-01.svg"
-                value="/placeholders/horse-01.svg"
-              />
-              <div style="display: flex; gap: 0.4rem; margin-top: 0.5rem; flex-wrap: wrap;">
-                <button type="button" class="btn-secondary btn-placeholder-pic" data-pic="/placeholders/horse-01.svg" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Ficha 1</button>
-                <button type="button" class="btn-secondary btn-placeholder-pic" data-pic="/placeholders/horse-02.svg" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Ficha 2</button>
-                <button type="button" class="btn-secondary btn-placeholder-pic" data-pic="/placeholders/horse-03.svg" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Ficha 3</button>
-                <button type="button" class="btn-secondary btn-placeholder-pic" data-pic="/placeholders/hero-herd.svg" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Manada</button>
+              <label>Foto del Caballo</label>
+              <div class="image-upload-wrapper">
+                <input type="file" id="formHorseFileInput" accept="image/*" class="file-hidden-input" />
+                <input type="hidden" id="formHorseFoto" value="/placeholders/horse-01.svg" />
+
+                <div id="imagePreviewBox" class="image-preview-box">
+                  <img id="imagePreviewImg" src="" alt="Vista previa del caballo" style="display: none;" />
+                  <div id="imageUploadPlaceholder" class="upload-placeholder-content">
+                    <span style="font-size: 2.2rem;">📸</span>
+                    <span>Subir foto desde tu dispositivo</span>
+                    <span>Hacé clic acá para elegir una foto de tu compu o celular</span>
+                  </div>
+                </div>
+                <div id="uploadStatusText" class="upload-status-hint" style="display: none;"></div>
               </div>
             </div>
 
@@ -462,6 +463,16 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       const btnHorseModalCancel = document.getElementById('btnHorseModalCancel')!;
       const btnOpenAddHorseModal = document.getElementById('btnOpenAddHorseModal')!;
       const btnQuickAddHorse = document.getElementById('btnQuickAddHorse')!;
+      const btnHorseModalSave = document.getElementById('btnHorseModalSave') as HTMLButtonElement;
+
+      // Elementos de subida de imagen
+      const formHorseFileInput = document.getElementById('formHorseFileInput') as HTMLInputElement;
+      const formHorseFoto = document.getElementById('formHorseFoto') as HTMLInputElement;
+      const imagePreviewBox = document.getElementById('imagePreviewBox')!;
+      const imagePreviewImg = document.getElementById('imagePreviewImg') as HTMLImageElement;
+      const imageUploadPlaceholder = document.getElementById('imageUploadPlaceholder')!;
+      const uploadStatusText = document.getElementById('uploadStatusText')!;
+      let selectedHorseFile: File | null = null;
 
       const btnLogout = document.getElementById('btnLogout')!;
       const btnExportCsv = document.getElementById('btnExportCsv')!;
@@ -571,8 +582,25 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       }
 
       // ==========================================
-      // GESTIÓN DE CABALLOS (CARGA Y CRUD)
+      // GESTIÓN DE CABALLOS (LA MANADA DE 14)
       // ==========================================
+      const INITIAL_HORSES = [
+        { nombre: 'Cometa', slug: 'cometa', estado: 'disponible' as const, destacado: true, foto: '/placeholders/horse-01.svg', descripcion: 'Parte de las vidas que cuidamos con amor en el santuario.' },
+        { nombre: 'Maga', slug: 'maga', estado: 'disponible' as const, destacado: true, foto: '/placeholders/horse-02.svg', descripcion: 'Presencia dulce y tranquila dentro de la manada.' },
+        { nombre: 'Soquetín', slug: 'soquetin', estado: 'disponible' as const, destacado: true, foto: '/placeholders/horse-03.svg', descripcion: 'Acompañado con constancia y dedicación en su proceso de cuidado.' },
+        { nombre: 'Sabi Juniors', slug: 'sabi-juniors', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-04.svg', descripcion: 'Lleno de energía y curiosidad compartiendo vida en libertad.' },
+        { nombre: 'Cachafaz', slug: 'cachafaz', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-05.svg', descripcion: 'Un compañero noble que encuentra protección y paz.' },
+        { nombre: 'Lucero', slug: 'lucero', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-06.svg', descripcion: 'Una mirada luminosa que inspira nuestro compromiso diario.' },
+        { nombre: 'Charlie', slug: 'charlie', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-01.svg', descripcion: 'Acompañando su bienestar y su vínculo con toda la manada.' },
+        { nombre: 'Almita', slug: 'almita', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-02.svg', descripcion: 'El corazón del santuario reflejado en su ternura y calma.' },
+        { nombre: 'Máximo', slug: 'maximo', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-03.svg', descripcion: 'Fuerte, sereno y siempre atento a sus compañeros.' },
+        { nombre: 'Amira', slug: 'amira', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-04.svg', descripcion: 'Disfrutando del sol, el pasto y la vida sin exigencias.' },
+        { nombre: 'Chispita', slug: 'chispita', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-05.svg', descripcion: 'Alegre, vivaz y querida por todos los que visitan el lugar.' },
+        { nombre: 'Wayra', slug: 'wayra', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-06.svg', descripcion: 'Espíritu de viento que honra la libertad recuperada.' },
+        { nombre: 'Rumi', slug: 'rumi', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-01.svg', descripcion: 'Paciencia, respeto y cuidado en cada etapa de su vida.' },
+        { nombre: 'Chimango', slug: 'chimango', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-02.svg', descripcion: 'Un sobreviviente que hoy disfruta de la tranquilidad del santuario.' },
+      ];
+
       async function loadHorsesData() {
         if (isLiveDb && supabase) {
           try {
@@ -582,13 +610,25 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
               .order('created_at', { ascending: true });
 
             if (error) {
-              console.warn('Tabla caballos no creada aún o vacía en Supabase:', error.message);
+              console.warn('Tabla caballos no creada aún o con error en Supabase:', error.message);
               loadLocalHorses();
             } else if (data && data.length > 0) {
               horsesList = data;
             } else {
-              // Si la tabla está vacía, cargamos los iniciales
-              loadLocalHorses();
+              // Si la tabla en Supabase está vacía, sembramos automáticamente los 14 caballos
+              try {
+                const { data: seeded, error: seedError } = await supabase
+                  .from('caballos')
+                  .insert(INITIAL_HORSES)
+                  .select();
+                if (!seedError && seeded && seeded.length > 0) {
+                  horsesList = seeded;
+                } else {
+                  loadLocalHorses();
+                }
+              } catch {
+                loadLocalHorses();
+              }
             }
           } catch (err) {
             console.warn('Error cargando caballos de Supabase:', err);
@@ -605,7 +645,16 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
       function loadLocalHorses() {
         const local = localStorage.getItem('almas_horses');
-        horsesList = local ? JSON.parse(local) : [];
+        if (local) {
+          horsesList = JSON.parse(local);
+        } else {
+          horsesList = INITIAL_HORSES.map((h, i) => ({
+            ...h,
+            id: `horse-auto-${i + 1}`,
+            created_at: new Date().toISOString(),
+          })) as HorseRecord[];
+          saveLocalHorses();
+        }
       }
 
       function saveLocalHorses() {
@@ -742,7 +791,12 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       function openAddHorseModal() {
         (document.getElementById('formHorseId') as HTMLInputElement).value = '';
         horseForm.reset();
-        (document.getElementById('formHorseFoto') as HTMLInputElement).value = '/placeholders/horse-01.svg';
+        selectedHorseFile = null;
+        imagePreviewImg.src = '';
+        imagePreviewImg.style.display = 'none';
+        imageUploadPlaceholder.style.display = 'flex';
+        uploadStatusText.style.display = 'none';
+        formHorseFoto.value = '/placeholders/horse-01.svg';
         (document.getElementById('formHorseEstado') as HTMLSelectElement).value = 'disponible';
         (document.getElementById('formHorseDestacado') as HTMLSelectElement).value = 'false';
         horseModalTitle.textContent = 'Nuevo Caballo';
@@ -755,10 +809,22 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
         (document.getElementById('formHorseId') as HTMLInputElement).value = horse.id;
         (document.getElementById('formHorseNombre') as HTMLInputElement).value = horse.nombre;
-        (document.getElementById('formHorseFoto') as HTMLInputElement).value = horse.foto || '/placeholders/horse-01.svg';
+        formHorseFoto.value = horse.foto || '/placeholders/horse-01.svg';
         (document.getElementById('formHorseEstado') as HTMLSelectElement).value = horse.estado || 'disponible';
         (document.getElementById('formHorseDestacado') as HTMLSelectElement).value = horse.destacado ? 'true' : 'false';
         (document.getElementById('formHorseDescripcion') as HTMLTextAreaElement).value = horse.descripcion || '';
+
+        selectedHorseFile = null;
+        uploadStatusText.style.display = 'none';
+        if (horse.foto && !horse.foto.startsWith('/placeholders')) {
+          imagePreviewImg.src = horse.foto;
+          imagePreviewImg.style.display = 'block';
+          imageUploadPlaceholder.style.display = 'none';
+        } else {
+          imagePreviewImg.src = '';
+          imagePreviewImg.style.display = 'none';
+          imageUploadPlaceholder.style.display = 'flex';
+        }
 
         horseModalTitle.textContent = 'Editar Caballo';
         horseModal.classList.add('open');
@@ -773,10 +839,60 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
         const id = (document.getElementById('formHorseId') as HTMLInputElement).value;
         const nombre = (document.getElementById('formHorseNombre') as HTMLInputElement).value.trim();
-        const foto = (document.getElementById('formHorseFoto') as HTMLInputElement).value.trim() || '/placeholders/horse-01.svg';
+        let foto = formHorseFoto.value.trim() || '/placeholders/horse-01.svg';
         const estado = (document.getElementById('formHorseEstado') as HTMLSelectElement).value as any;
         const destacado = (document.getElementById('formHorseDestacado') as HTMLSelectElement).value === 'true';
         const descripcion = (document.getElementById('formHorseDescripcion') as HTMLTextAreaElement).value.trim() || undefined;
+
+        // Si se seleccionó una foto del celular o compu, se sube directo a Supabase Storage
+        if (selectedHorseFile) {
+          if (isLiveDb && supabase) {
+            uploadStatusText.style.display = 'block';
+            uploadStatusText.textContent = 'Subiendo foto a Supabase...';
+            btnHorseModalSave.disabled = true;
+
+            try {
+              const fileExt = selectedHorseFile.name.split('.').pop() || 'jpg';
+              const cleanName = nombre.toLowerCase().replace(/[^a-z0-9]/g, '-');
+              const fileName = `${cleanName || 'caballo'}-${Date.now()}.${fileExt}`;
+              const filePath = `fotos/${fileName}`;
+
+              const { error: uploadError } = await supabase.storage
+                .from('caballos')
+                .upload(filePath, selectedHorseFile, {
+                  cacheControl: '3600',
+                  upsert: true,
+                });
+
+              if (uploadError) {
+                console.error('Error subiendo foto:', uploadError);
+                throw uploadError;
+              }
+
+              const { data: publicUrlData } = supabase.storage
+                .from('caballos')
+                .getPublicUrl(filePath);
+
+              foto = publicUrlData.publicUrl;
+            } catch (uploadErr: any) {
+              console.error(uploadErr);
+              showToast(`Error al subir imagen: ${uploadErr.message || 'Verificá el bucket en Supabase'}`, true);
+              btnHorseModalSave.disabled = false;
+              uploadStatusText.style.display = 'none';
+              return;
+            } finally {
+              btnHorseModalSave.disabled = false;
+              uploadStatusText.style.display = 'none';
+            }
+          } else {
+            // Modo local: DataURL
+            const reader = new FileReader();
+            foto = await new Promise((resolve) => {
+              reader.onload = () => resolve(reader.result as string);
+              reader.readAsDataURL(selectedHorseFile!);
+            });
+          }
+        }
 
         const payload: Partial<HorseRecord> = {
           nombre,
@@ -1315,12 +1431,19 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           if (e.target === horseModal) closeHorseModal();
         });
 
-        // Botones rápidos de placeholders de fotos
-        document.querySelectorAll('.btn-placeholder-pic').forEach((btn) => {
-          btn.addEventListener('click', (e) => {
-            const pic = (e.currentTarget as HTMLElement).getAttribute('data-pic');
-            (document.getElementById('formHorseFoto') as HTMLInputElement).value = pic || '';
-          });
+        // Subida de imagen y vista previa inmediata
+        imagePreviewBox.addEventListener('click', () => {
+          formHorseFileInput.click();
+        });
+
+        formHorseFileInput.addEventListener('change', () => {
+          if (formHorseFileInput.files && formHorseFileInput.files[0]) {
+            selectedHorseFile = formHorseFileInput.files[0];
+            const previewUrl = URL.createObjectURL(selectedHorseFile);
+            imagePreviewImg.src = previewUrl;
+            imagePreviewImg.style.display = 'block';
+            imageUploadPlaceholder.style.display = 'none';
+          }
         });
 
         // Búsquedas y filtros

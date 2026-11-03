@@ -64,3 +64,28 @@ create policy "Acceso total a padrinos para clave anon"
 drop policy if exists "Acceso total a reportes para clave anon" on public.reportes_mensuales;
 create policy "Acceso total a reportes para clave anon"
   on public.reportes_mensuales for all using (true) with check (true);
+
+-- 7. Bucket de Almacenamiento de Fotos de Caballos (Supabase Storage)
+insert into storage.buckets (id, name, public)
+values ('caballos', 'caballos', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "Permitir subida de fotos de caballos" on storage.objects;
+create policy "Permitir subida de fotos de caballos"
+  on storage.objects for insert
+  with check (bucket_id = 'caballos');
+
+drop policy if exists "Lectura publica de fotos de caballos" on storage.objects;
+create policy "Lectura publica de fotos de caballos"
+  on storage.objects for select
+  using (bucket_id = 'caballos');
+
+drop policy if exists "Actualizacion de fotos de caballos" on storage.objects;
+create policy "Actualizacion de fotos de caballos"
+  on storage.objects for update
+  using (bucket_id = 'caballos');
+
+drop policy if exists "Eliminacion de fotos de caballos" on storage.objects;
+create policy "Eliminacion de fotos de caballos"
+  on storage.objects for delete
+  using (bucket_id = 'caballos');

@@ -897,3 +897,69 @@
   background: #fff3bf;
   color: #d9480f;
 }
+
+/* =========================================================
+   Subida de Fotos a Supabase Storage (Dropzone & Preview)
+   ========================================================= */
+.image-upload-wrapper {
+  margin-top: 0.35rem;
+}
+
+.file-hidden-input {
+  display: none;
+}
+
+.image-preview-box {
+  border: 2px dashed var(--line);
+  border-radius: 14px;
+  padding: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  background: #fbf9f4;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-preview-box:hover {
+  border-color: var(--terracotta);
+  background: #f8f4eb;
+}
+
+.image-preview-box img {
+  max-height: 180px;
+  max-width: 100%;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.upload-placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--green);
+}
+
+.upload-placeholder-content span:nth-child(2) {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.upload-placeholder-content span:nth-child(3) {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.upload-status-hint {
+  font-size: 0.82rem;
+  color: var(--terracotta);
+  font-weight: 600;
+  margin-top: 0.5rem;
+  text-align: center;
+}

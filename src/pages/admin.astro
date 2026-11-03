@@ -160,7 +160,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
               <thead>
                 <tr>
                   <th>Padrino / Madrina</th>
-                  <th>Caballo</th>
+                  <th class="center">Caballo</th>
                   <th>Contacto</th>
                   <th>Aporte</th>
                   <!-- 12 columnas de meses -->
@@ -1097,6 +1097,16 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
             );
             const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${waText}` : null;
 
+            // Datos del caballo (foto miniatura y nombre)
+            const matchedHorse = horsesList.find(
+              (h) =>
+                h.id === sp.caballo_id ||
+                h.slug === sp.caballo_id ||
+                h.nombre.toLowerCase().trim() === (sp.caballo_nombre || '').toLowerCase().trim()
+            );
+            const horsePhoto = matchedHorse?.foto || '/placeholders/horse-01.svg';
+            const horseName = matchedHorse?.nombre || sp.caballo_nombre || 'Caballo';
+
             return `
               <tr data-id="${sp.id}">
                 <td class="padrino-info-cell">
@@ -1107,11 +1117,16 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
                   </div>
                   ${sp.notas ? `<div class="padrino-meta" style="margin-top: 4px; font-style: italic;">"${escapeHtml(sp.notas)}"</div>` : ''}
                 </td>
-                <td>
-                  <span class="horse-badge">
-                    <span class="horse-badge-icon">🐴</span>
-                    ${escapeHtml(sp.caballo_nombre)}
-                  </span>
+                <td class="horse-cell center">
+                  <div class="horse-cell-thumb-wrapper">
+                    <img
+                      src="${horsePhoto}"
+                      alt="${escapeHtml(horseName)}"
+                      class="horse-cell-thumb"
+                      onerror="this.src='/placeholders/horse-01.svg'"
+                    />
+                    <span class="horse-cell-name">${escapeHtml(horseName)}</span>
+                  </div>
                 </td>
                 <td class="contact-cell">
                   ${

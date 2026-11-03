@@ -963,3 +963,342 @@
   margin-top: 0.5rem;
   text-align: center;
 }
+
+/* =========================================================
+   Foto de Caballo en la Tabla de Padrinos (Foto arriba, Nombre abajo)
+   ========================================================= */
+.horse-cell {
+  text-align: center;
+  padding: 0.65rem 0.5rem !important;
+  vertical-align: middle;
+}
+
+.horse-cell-thumb-wrapper {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.horse-cell-thumb {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--sand);
+  background: #eae4d5;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  display: block;
+}
+
+.horse-cell-name {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--green);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   OPTIMIZACIONES FULL RESPONSIVE PARA DISPOSITIVOS MÓVILES
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .metrics-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  /* Contenedor principal en celular */
+  .admin-shell {
+    padding: 0.65rem 0.5rem;
+  }
+
+  /* Cabecera / Topbar */
+  .admin-topbar {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.85rem;
+    margin-bottom: 0.85rem;
+    border-radius: 16px;
+  }
+
+  .admin-branding {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .admin-branding h1 {
+    font-size: 1.25rem;
+  }
+
+  .admin-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .year-selector-group {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .year-btn {
+    flex: 1;
+    text-align: center;
+    padding: 0.45rem 0.2rem;
+    font-size: 0.85rem;
+  }
+
+  #btnExportCsv {
+    grid-column: 1 / 2;
+  }
+
+  #btnLogout {
+    grid-column: 2 / 3;
+    justify-content: center;
+  }
+
+  #btnOpenAddHorseModal {
+    grid-column: 1 / 2;
+  }
+
+  #btnOpenAddModal {
+    grid-column: 2 / 3;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    justify-content: center;
+    padding: 0.65rem 0.5rem;
+    font-size: 0.82rem;
+    border-radius: 10px;
+  }
+
+  /* Pestañas táctiles para celular */
+  .admin-nav-tabs {
+    display: flex;
+    gap: 0.35rem;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .admin-tab-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 0.75rem 0.4rem;
+    font-size: 0.85rem;
+    border-radius: 12px;
+    background: var(--warm-white);
+    border: 1px solid var(--line);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+  }
+
+  .admin-tab-btn.active {
+    background: var(--green);
+    color: #fff;
+    border-color: var(--green);
+  }
+
+  .admin-tab-btn.active::after {
+    display: none;
+  }
+
+  .admin-tab-btn.active .tab-badge {
+    background: rgba(255,255,255,0.25);
+    color: #fff;
+  }
+
+  /* Métricas en cuadrícula 2x2 compacta */
+  .metrics-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .metric-card {
+    padding: 0.75rem;
+    border-radius: 12px;
+  }
+
+  .metric-label {
+    font-size: 0.68rem;
+  }
+
+  .metric-value {
+    font-size: 1.35rem;
+  }
+
+  .metric-sub {
+    font-size: 0.7rem;
+  }
+
+  /* Barra de búsqueda y filtros */
+  .admin-filterbar {
+    padding: 0.75rem;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    border-radius: 14px;
+  }
+
+  .search-input-wrapper {
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+  }
+
+  .filter-selects {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .filter-select {
+    width: 100%;
+    font-size: 0.85rem;
+    padding: 0.6rem 0.75rem;
+  }
+
+  #btnQuickAddHorse {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Tabla con desplazamiento suave y columna de Padrino fija */
+  .table-card {
+    border-radius: 14px;
+    position: relative;
+  }
+
+  .table-wrapper {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .padrinos-table {
+    font-size: 0.82rem;
+  }
+
+  /* Columna fija de Padrino en mobile para no perder de vista a quién se le tilda */
+  .padrinos-table th:first-child,
+  .padrinos-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    background: var(--warm-white);
+    box-shadow: 2px 0 6px rgba(0,0,0,0.06);
+    min-width: 135px;
+    max-width: 150px;
+  }
+
+  .padrinos-table th:first-child {
+    background: #f5f1e8;
+  }
+
+  /* Botones táctiles grandes para los 12 meses (fáciles de tocar con el pulgar) */
+  .report-toggle-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+    border-radius: 8px;
+  }
+
+  .th-month {
+    min-width: 42px;
+    padding: 0.5rem 0.2rem;
+    font-size: 0.72rem;
+  }
+
+  /* Grilla de caballos en columna única para celular */
+  .horses-grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
+  .horse-card-media {
+    height: 180px;
+  }
+
+  .horse-card-body {
+    padding: 1rem;
+  }
+
+  /* Modales en vista móvil tipo tarjeta inferior */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-window {
+    max-width: 100%;
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 20px 20px 0 0;
+    padding: 1.25rem 1rem 1.75rem;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+
+  .form-actions {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .form-actions button {
+    flex: 1;
+    justify-content: center;
+    padding: 0.8rem;
+  }
+
+  /* Notificaciones Toast en celular */
+  .toast-notice {
+    bottom: 1rem;
+    right: 0.75rem;
+    left: 0.75rem;
+    justify-content: center;
+    font-size: 0.85rem;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+  }
+
+  /* Pantalla de bloqueo PIN en celular */
+  .lock-card {
+    padding: 1.75rem 1.25rem;
+    border-radius: 20px;
+  }
+}
+
+@media (max-width: 420px) {
+  .metrics-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .admin-actions {
+    grid-template-columns: 1fr;
+  }
+
+  #btnExportCsv,
+  #btnLogout,
+  #btnOpenAddHorseModal,
+  #btnOpenAddModal {
+    grid-column: auto;
+  }
+}

@@ -1,0 +1,96 @@
+---
+import type { Horse } from '@/data/horses';
+import { contactPendingLabel, getContactHref } from '@/lib/cta';
+
+interface Props {
+  horses: Horse[];
+  variant?: 'compact' | 'full';
+}
+
+const { horses, variant = 'full' } = Astro.props;
+---
+<section class={`horse-grid horse-grid-${variant}`} aria-label="Fichas de caballos para padrinazgo">
+  {horses.map((horse) => {
+    const message = `Hola, quiero recibir información para apadrinar a ${horse.name}.`;
+    const sponsorshipHref = getContactHref(message);
+    return (
+      <article class="horse-card">
+        <div class="horse-media">
+          <img src={horse.photo} alt={horse.alt} loading={variant === 'compact' ? 'eager' : 'lazy'} decoding="async" />
+          {horse.draft && <span class="draft-badge">Borrador</span>}
+        </div>
+        <div class="horse-content">
+          <p class="eyebrow">Ficha en validación</p>
+          <h3>{horse.name}</h3>
+          <p>{horse.shortDescription}</p>
+          <div class="horse-actions">
+            {sponsorshipHref ? (
+              <a class="btn btn-primary btn-small" href={sponsorshipHref} data-event="horse_sponsorship_cta_clicked" data-horse-id={horse.id}>Apadrinar</a>
+            ) : (
+              <span class="btn btn-primary btn-small is-disabled" aria-disabled="true" title={contactPendingLabel}>Contacto pendiente</span>
+            )}
+            <button
+              class="text-button horse-detail-button"
+              type="button"
+              data-event="horse_card_opened"
+              data-horse-id={horse.id}
+              data-horse-name={horse.name}
+              data-horse-photo={horse.photo}
+              data-horse-alt={horse.alt}
+              data-horse-description={horse.extendedDescription || horse.shortDescription}
+              data-horse-draft={String(horse.draft)}
+            >
+              Conocer más
+            </button>
+          </div>
+        </div>
+      </article>
+    );
+  })}
+</section>
+
+<dialog class="horse-dialog" id="horse-dialog" aria-labelledby="horse-dialog-title">
+  <button class="dialog-close" type="button" aria-label="Cerrar detalle">×</button>
+  <div class="dialog-grid">
+    <img id="horse-dialog-image" src="/placeholders/horse-01.svg" alt="" />
+    <div>
+      <p class="eyebrow" id="horse-dialog-status">Ficha en validación</p>
+      <h2 id="horse-dialog-title">Caballo</h2>
+      <p id="horse-dialog-description"></p>
+      <div class="note-box">
+        <strong>Padrinazgo simbólico</strong>
+        <p>Apadrinar no implica propiedad ni adopción. El aporte acompaña el cuidado general del santuario.</p>
+      </div>
+      <span class="btn btn-primary is-disabled" aria-disabled="true">Canal de contacto pendiente de confirmación</span>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  const dialog = document.getElementById('horse-dialog') as HTMLDialogElement | null;
+  const closeButton = dialog?.querySelector<HTMLButtonElement>('.dialog-close');
+  const title = document.getElementById('horse-dialog-title');
+  const description = document.getElementById('horse-dialog-description');
+  const image = document.getElementById('horse-dialog-image') as HTMLImageElement | null;
+  const status = document.getElementById('horse-dialog-status');
+
+  document.querySelectorAll<HTMLButtonElement>('.horse-detail-button').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (!dialog || !title || !description || !image || !status) return;
+
+      title.textContent = button.dataset.horseName || 'Ficha de caballo';
+      description.textContent = button.dataset.horseDescription || '';
+      image.src = button.dataset.horsePhoto || '/placeholders/horse-01.svg';
+      image.alt = button.dataset.horseAlt || '';
+      status.textContent = button.dataset.horseDraft === 'true' ? 'Ficha borrador — datos pendientes' : 'Ficha disponible';
+      dialog.showModal();
+    });
+  });
+
+  closeButton?.addEventListener('click', () => dialog?.close());
+  dialog?.addEventListener('click', (event) => {
+    if (event.target === dialog) {
+      dialog.close();
+    }
+  });
+</script>

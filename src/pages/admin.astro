@@ -1,0 +1,918 @@
+---
+import { horses } from '@/data/horses';
+import '@/styles/global.css';
+import '@/styles/admin.css';
+
+const adminPin = import.meta.env.PUBLIC_ADMIN_PIN || '';
+const currentYear = new Date().getFullYear();
+const currentMonth = new Date().getMonth() + 1; // 1-12
+---
+
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Planilla de Padrinos — Fundación Almas Libres</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body
+    class="admin-body"
+    data-admin-pin={adminPin}
+    data-current-year={currentYear}
+    data-current-month={currentMonth}
+  >
+    <!-- Pantalla de Bloqueo / PIN (se oculta si el PIN es correcto o si no hay PIN configurado) -->
+    <div id="lockScreen" class="lock-screen-wrapper" style="display: none;">
+      <div class="lock-card">
+        <span class="lock-badge">Acceso Interno</span>
+        <h1>Fundación Almas Libres</h1>
+        <p>Ingresá la clave de acceso del equipo para gestionar la planilla de padrinos.</p>
+        <form id="pinForm" class="pin-form" onsubmit="return false;">
+          <input
+            type="password"
+            id="pinInput"
+            class="pin-input"
+            placeholder="••••"
+            maxlength="20"
+            autocomplete="current-password"
+            required
+            autofocus
+          />
+          <button type="submit" id="pinSubmitBtn" class="pin-submit-btn">Ingresar al Panel</button>
+          <div id="pinError" class="pin-error" style="display: none;">Clave incorrecta. Intentá de nuevo.</div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Panel de Administración -->
+    <div id="adminApp" class="admin-shell" style="display: none;">
+      <!-- Topbar Principal -->
+      <header class="admin-topbar">
+        <div class="admin-branding">
+          <h1>
+            <span>🐴</span> Planilla de Padrinazgo
+          </h1>
+          <div class="admin-subtitle">
+            <span>Fundación Almas Libres</span>
+            <span class="status-pill demo" id="dbStatusPill">
+              <span id="dbStatusDot">●</span> <span id="dbStatusText">Cargando...</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="admin-actions">
+          <!-- Selector de Año -->
+          <div class="year-selector-group">
+            <button type="button" class="year-btn" data-year={currentYear - 1}>{currentYear - 1}</button>
+            <button type="button" class="year-btn active" data-year={currentYear}>{currentYear}</button>
+            <button type="button" class="year-btn" data-year={currentYear + 1}>{currentYear + 1}</button>
+          </div>
+
+          <button type="button" id="btnExportCsv" class="btn-secondary" title="Descargar como Excel/CSV">
+            <span>📥</span> Exportar CSV
+          </button>
+          <button type="button" id="btnOpenAddModal" class="btn-primary">
+            <span>+</span> Nuevo Padrino
+          </button>
+          <button type="button" id="btnLogout" class="btn-secondary" style="padding: 0.65rem 0.8rem;" title="Cerrar sesión">
+            <span>🔒</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Banner de configuración si falta Supabase -->
+      <div id="setupBanner" class="setup-banner" style="display: none;">
+        <div>
+          <strong>⚡ Modo de Prueba Activo (Navegador):</strong> Los datos se están guardando localmente en este dispositivo.
+          Para sincronizar con la base de datos permanente en la nube para todo el equipo, agregá <code>PUBLIC_SUPABASE_URL</code> y <code>PUBLIC_SUPABASE_ANON_KEY</code> en tu panel de Vercel o archivo <code>.env</code>.
+        </div>
+      </div>
+
+      <!-- Tarjetas de Métricas -->
+      <section class="metrics-row">
+        <article class="metric-card">
+          <div class="metric-label">Padrinos Activos</div>
+          <div class="metric-value" id="metricActiveSponsors">0</div>
+          <div class="metric-sub" id="metricTotalSponsors">Total registrados: 0</div>
+        </article>
+        <article class="metric-card">
+          <div class="metric-label">Caballos con Padrino</div>
+          <div class="metric-value" id="metricSponsoredHorses">0</div>
+          <div class="metric-sub">de {horses.length} en la manada</div>
+        </article>
+        <article class="metric-card">
+          <div class="metric-label">Reportes de <span id="currentMonthNameLabel">este mes</span></div>
+          <div class="metric-value" id="metricMonthReports">0 / 0</div>
+          <div class="metric-sub warning" id="metricMonthPending">0 pendientes de envío</div>
+        </article>
+        <article class="metric-card">
+          <div class="metric-label">Aporte Mensual Estimado</div>
+          <div class="metric-value" id="metricMonthlyFunds">$0</div>
+          <div class="metric-sub">Sostén para el santuario</div>
+        </article>
+      </section>
+
+      <!-- Barra de Filtros y Búsqueda -->
+      <div class="admin-filterbar">
+        <div class="search-input-wrapper">
+          <span class="search-icon">🔍</span>
+          <input
+            type="text"
+            id="searchInput"
+            class="search-input"
+            placeholder="Buscar por nombre, teléfono o email..."
+          />
+        </div>
+
+        <div class="filter-selects">
+          <select id="filterHorse" class="filter-select">
+            <option value="all">Todos los caballos</option>
+            {horses.map((horse) => (
+              <option value={horse.id}>{horse.name} ({horse.id})</option>
+            ))}
+          </select>
+
+          <select id="filterStatus" class="filter-select">
+            <option value="all">Todos los estados</option>
+            <option value="activo" selected>Solo Activos</option>
+            <option value="pausado">Pausados</option>
+            <option value="baja">De Baja</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Tabla / Planilla de Padrinos -->
+      <div class="table-card">
+        <div class="table-wrapper">
+          <table class="padrinos-table">
+            <thead>
+              <tr>
+                <th>Padrino / Madrina</th>
+                <th>Caballo</th>
+                <th>Contacto</th>
+                <th>Aporte</th>
+                <!-- 12 columnas de meses -->
+                <th class="th-month" data-month="1">Ene</th>
+                <th class="th-month" data-month="2">Feb</th>
+                <th class="th-month" data-month="3">Mar</th>
+                <th class="th-month" data-month="4">Abr</th>
+                <th class="th-month" data-month="5">May</th>
+                <th class="th-month" data-month="6">Jun</th>
+                <th class="th-month" data-month="7">Jul</th>
+                <th class="th-month" data-month="8">Ago</th>
+                <th class="th-month" data-month="9">Sep</th>
+                <th class="th-month" data-month="10">Oct</th>
+                <th class="th-month" data-month="11">Nov</th>
+                <th class="th-month" data-month="12">Dic</th>
+                <th class="center" style="width: 80px;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="sponsorsTableBody">
+              <!-- Renderizado dinámico vía JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Estado vacío si no hay coincidencias -->
+        <div id="emptyState" class="empty-table-state" style="display: none;">
+          <div style="font-size: 2.5rem;">🐴</div>
+          <h3>No se encontraron padrinos</h3>
+          <p>Podés registrar el primero haciendo clic en <strong>"+ Nuevo Padrino"</strong>.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Formulario (Alta / Edición) -->
+    <div id="sponsorModal" class="modal-overlay">
+      <div class="modal-window">
+        <div class="modal-header">
+          <h2 id="modalTitle">Nuevo Padrino</h2>
+          <button type="button" id="btnModalClose" class="modal-close-btn">&times;</button>
+        </div>
+
+        <form id="sponsorForm">
+          <input type="hidden" id="formSponsorId" value="" />
+
+          <div class="form-grid">
+            <div class="form-group full">
+              <label for="formNombre">Nombre y Apellido *</label>
+              <input type="text" id="formNombre" class="form-input" required placeholder="Ej: Marcela López" />
+            </div>
+
+            <div class="form-group full">
+              <label for="formCaballoId">Caballo que apadrina *</label>
+              <select id="formCaballoId" class="form-select" required>
+                <option value="">Seleccionar caballo...</option>
+                {horses.map((horse) => (
+                  <option value={horse.id} data-name={horse.name}>
+                    {horse.name} ({horse.id})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="formFechaInicio">Fecha de inicio *</label>
+              <input type="date" id="formFechaInicio" class="form-input" required />
+            </div>
+
+            <div class="form-group">
+              <label for="formEstado">Estado</label>
+              <select id="formEstado" class="form-select">
+                <option value="activo">Activo</option>
+                <option value="pausado">Pausado</option>
+                <option value="baja">Baja</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="formTelefono">WhatsApp / Teléfono</label>
+              <input type="tel" id="formTelefono" class="form-input" placeholder="Ej: +54 9 11 5555-1234" />
+            </div>
+
+            <div class="form-group">
+              <label for="formEmail">Email</label>
+              <input type="email" id="formEmail" class="form-input" placeholder="padrino@correo.com" />
+            </div>
+
+            <div class="form-group">
+              <label for="formMonto">Aporte Mensual ($)</label>
+              <input type="number" id="formMonto" class="form-input" placeholder="Ej: 15000" min="0" step="500" />
+            </div>
+
+            <div class="form-group">
+              <label for="formMoneda">Moneda</label>
+              <select id="formMoneda" class="form-select">
+                <option value="ARS">ARS ($)</option>
+                <option value="USD">USD (U$D)</option>
+              </select>
+            </div>
+
+            <div class="form-group full">
+              <label for="formNotas">Notas internas / Comentarios</label>
+              <textarea
+                id="formNotas"
+                class="form-textarea"
+                rows="2"
+                placeholder="Ej: Prefiere novedades por WhatsApp los primeros días del mes."
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="btnModalCancel" class="btn-secondary">Cancelar</button>
+            <button type="submit" id="btnModalSave" class="btn-primary">Guardar Padrino</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Notificación Toast -->
+    <div id="toast" class="toast-notice">
+      <span id="toastIcon">✓</span>
+      <span id="toastMessage">Guardado con éxito</span>
+    </div>
+
+    <!-- Script de lógica de la aplicación -->
+    <script>
+      import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+      import type { Sponsor, MonthlyReportRecord } from '@/lib/types';
+      import { MONTH_NAMES } from '@/lib/types';
+
+      const bodyEl = document.body;
+      const config = {
+        adminPin: bodyEl.dataset.adminPin || '',
+        currentYear: Number(bodyEl.dataset.currentYear) || new Date().getFullYear(),
+        currentMonth: Number(bodyEl.dataset.currentMonth) || new Date().getMonth() + 1,
+      };
+
+      // Estado de la aplicación
+      let activeYear = config.currentYear;
+      let sponsors: Sponsor[] = [];
+      let reports: MonthlyReportRecord[] = [];
+      let isLiveDb = isSupabaseConfigured;
+
+      // Elementos del DOM
+      const lockScreen = document.getElementById('lockScreen')!;
+      const adminApp = document.getElementById('adminApp')!;
+      const pinForm = document.getElementById('pinForm')!;
+      const pinInput = document.getElementById('pinInput') as HTMLInputElement;
+      const pinError = document.getElementById('pinError')!;
+      const dbStatusPill = document.getElementById('dbStatusPill')!;
+      const dbStatusText = document.getElementById('dbStatusText')!;
+      const setupBanner = document.getElementById('setupBanner')!;
+      const sponsorsTableBody = document.getElementById('sponsorsTableBody')!;
+      const emptyState = document.getElementById('emptyState')!;
+      const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+      const filterHorse = document.getElementById('filterHorse') as HTMLSelectElement;
+      const filterStatus = document.getElementById('filterStatus') as HTMLSelectElement;
+      const currentMonthNameLabel = document.getElementById('currentMonthNameLabel')!;
+      const toastEl = document.getElementById('toast')!;
+      const toastMessage = document.getElementById('toastMessage')!;
+
+      // Modal
+      const sponsorModal = document.getElementById('sponsorModal')!;
+      const sponsorForm = document.getElementById('sponsorForm') as HTMLFormElement;
+      const modalTitle = document.getElementById('modalTitle')!;
+      const btnModalClose = document.getElementById('btnModalClose')!;
+      const btnModalCancel = document.getElementById('btnModalCancel')!;
+      const btnOpenAddModal = document.getElementById('btnOpenAddModal')!;
+      const btnLogout = document.getElementById('btnLogout')!;
+      const btnExportCsv = document.getElementById('btnExportCsv')!;
+
+      // Inicialización de autenticación por PIN
+      function initAuth() {
+        const pin = config.adminPin;
+        const isAuth = sessionStorage.getItem('almas_admin_auth') === 'true';
+
+        if (!pin || isAuth) {
+          showApp();
+        } else {
+          lockScreen.style.display = 'flex';
+          adminApp.style.display = 'none';
+        }
+      }
+
+      function showApp() {
+        lockScreen.style.display = 'none';
+        adminApp.style.display = 'block';
+        initApp();
+      }
+
+      pinForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (pinInput.value.trim() === config.adminPin) {
+          sessionStorage.setItem('almas_admin_auth', 'true');
+          pinError.style.display = 'none';
+          showApp();
+        } else {
+          pinError.style.display = 'block';
+          pinInput.value = '';
+          pinInput.focus();
+        }
+      });
+
+      btnLogout.addEventListener('click', () => {
+        sessionStorage.removeItem('almas_admin_auth');
+        window.location.reload();
+      });
+
+      // Inicialización de la Aplicación
+      async function initApp() {
+        updateDbStatus();
+        highlightCurrentMonthHeaders();
+        setupYearSelector();
+        setupEventListeners();
+        await loadData();
+      }
+
+      function updateDbStatus() {
+        if (isLiveDb) {
+          dbStatusPill.className = 'status-pill live';
+          dbStatusText.textContent = 'Supabase Conectado';
+          setupBanner.style.display = 'none';
+        } else {
+          dbStatusPill.className = 'status-pill demo';
+          dbStatusText.textContent = 'Modo Local (Demo)';
+          setupBanner.style.display = 'flex';
+        }
+      }
+
+      function highlightCurrentMonthHeaders() {
+        const monthNum = config.currentMonth;
+        currentMonthNameLabel.textContent = MONTH_NAMES[monthNum - 1];
+
+        document.querySelectorAll('.th-month').forEach((th) => {
+          const m = Number(th.getAttribute('data-month'));
+          if (m === monthNum && activeYear === config.currentYear) {
+            th.classList.add('current-month');
+          } else {
+            th.classList.remove('current-month');
+          }
+        });
+      }
+
+      function setupYearSelector() {
+        document.querySelectorAll('.year-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('.year-btn').forEach((b) => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeYear = Number(btn.getAttribute('data-year'));
+            highlightCurrentMonthHeaders();
+            loadReportsForYear(activeYear);
+          });
+        });
+      }
+
+      // Carga de Datos (Supabase con fallback a LocalStorage)
+      async function loadData() {
+        if (isLiveDb && supabase) {
+          try {
+            const { data: sponsorsData, error: sponsorsError } = await supabase
+              .from('padrinos')
+              .select('*')
+              .order('created_at', { ascending: false });
+
+            if (sponsorsError) throw sponsorsError;
+            sponsors = sponsorsData || [];
+
+            await loadReportsForYear(activeYear);
+          } catch (err) {
+            console.warn('Error conectando a Supabase, recurriendo a almacenamiento local:', err);
+            isLiveDb = false;
+            updateDbStatus();
+            loadLocalStorageData();
+          }
+        } else {
+          loadLocalStorageData();
+        }
+
+        renderTable();
+        updateMetrics();
+      }
+
+      async function loadReportsForYear(year: number) {
+        if (isLiveDb && supabase) {
+          try {
+            const { data: reportsData, error: reportsError } = await supabase
+              .from('reportes_mensuales')
+              .select('*')
+              .eq('anio', year);
+
+            if (reportsError) throw reportsError;
+            reports = reportsData || [];
+          } catch (err) {
+            console.error('Error cargando reportes:', err);
+          }
+        } else {
+          const localReports = localStorage.getItem(`almas_reports_${year}`);
+          reports = localReports ? JSON.parse(localReports) : [];
+        }
+
+        renderTable();
+        updateMetrics();
+      }
+
+      function loadLocalStorageData() {
+        const localSponsors = localStorage.getItem('almas_sponsors');
+        if (localSponsors) {
+          sponsors = JSON.parse(localSponsors);
+        } else {
+          // Datos iniciales demostrativos para que puedan probar de inmediato
+          sponsors = [
+            {
+              id: 'demo-1',
+              nombre: 'Camila Rodriguez',
+              caballo_id: 'horse-01',
+              caballo_nombre: 'Ficha #1 (horse-01)',
+              fecha_inicio: '2026-03-01',
+              telefono: '+54 9 11 4444-5555',
+              email: 'camila@ejemplo.com',
+              monto: 15000,
+              moneda: 'ARS',
+              estado: 'activo',
+              notas: 'Amiga de Magalí. Enviar fotos comiendo manzanas.',
+            },
+            {
+              id: 'demo-2',
+              nombre: 'Martín Benítez',
+              caballo_id: 'horse-02',
+              caballo_nombre: 'Ficha #2 (horse-02)',
+              fecha_inicio: '2026-05-15',
+              telefono: '+54 9 11 6666-7777',
+              email: 'martin@ejemplo.com',
+              monto: 20000,
+              moneda: 'ARS',
+              estado: 'activo',
+              notas: 'Prefiere novedades por WhatsApp.',
+            },
+          ];
+          saveLocalStorage();
+        }
+
+        const localReports = localStorage.getItem(`almas_reports_${activeYear}`);
+        reports = localReports ? JSON.parse(localReports) : [];
+      }
+
+      function saveLocalStorage() {
+        localStorage.setItem('almas_sponsors', JSON.stringify(sponsors));
+        localStorage.setItem(`almas_reports_${activeYear}`, JSON.stringify(reports));
+      }
+
+      // Render de la Tabla
+      function renderTable() {
+        const query = searchInput.value.toLowerCase().trim();
+        const selectedHorse = filterHorse.value;
+        const selectedStatus = filterStatus.value;
+
+        const filtered = sponsors.filter((sp) => {
+          const matchesQuery =
+            sp.nombre.toLowerCase().includes(query) ||
+            (sp.telefono && sp.telefono.toLowerCase().includes(query)) ||
+            (sp.email && sp.email.toLowerCase().includes(query));
+
+          const matchesHorse = selectedHorse === 'all' || sp.caballo_id === selectedHorse;
+          const matchesStatus = selectedStatus === 'all' || sp.estado === selectedStatus;
+
+          return matchesQuery && matchesHorse && matchesStatus;
+        });
+
+        if (filtered.length === 0) {
+          sponsorsTableBody.innerHTML = '';
+          emptyState.style.display = 'block';
+          return;
+        }
+
+        emptyState.style.display = 'none';
+
+        sponsorsTableBody.innerHTML = filtered
+          .map((sp) => {
+            // Generar 12 celdas de meses
+            const monthCells = Array.from({ length: 12 }, (_, i) => {
+              const month = i + 1;
+              const isSent = reports.some(
+                (r) => r.padrino_id === sp.id && r.anio === activeYear && r.mes === month && r.enviado
+              );
+              const isCurrent = month === config.currentMonth && activeYear === config.currentYear;
+
+              return `
+                <td class="month-cell ${isCurrent ? 'current-month' : ''}">
+                  <button
+                    type="button"
+                    class="report-toggle-btn ${isSent ? 'sent' : ''}"
+                    data-padrino-id="${sp.id}"
+                    data-month="${month}"
+                    title="${isSent ? `Reporte ${MONTH_NAMES[i]} ${activeYear} enviado` : `Marcar reporte ${MONTH_NAMES[i]} ${activeYear} como enviado`}"
+                  >
+                    ${isSent ? '✓' : '•'}
+                  </button>
+                </td>
+              `;
+            }).join('');
+
+            // Link WhatsApp con mensaje prearmado
+            const cleanPhone = (sp.telefono || '').replace(/\D/g, '');
+            const waText = encodeURIComponent(
+              `¡Hola ${sp.nombre}! 🐴 Te escribimos desde Fundación Almas Libres con las novedades de este mes de ${sp.caballo_nombre}. ¡Gracias por ser parte de su cuidado!`
+            );
+            const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${waText}` : null;
+
+            return `
+              <tr data-id="${sp.id}">
+                <td class="padrino-info-cell">
+                  <span class="padrino-name">${escapeHtml(sp.nombre)}</span>
+                  <div class="padrino-meta">
+                    <span class="status-tag ${sp.estado}">${sp.estado}</span>
+                    <span>Desde ${sp.fecha_inicio || '-'}</span>
+                  </div>
+                  ${sp.notas ? `<div class="padrino-meta" style="margin-top: 4px; font-style: italic;">"${escapeHtml(sp.notas)}"</div>` : ''}
+                </td>
+                <td>
+                  <span class="horse-badge">
+                    <span class="horse-badge-icon">🐴</span>
+                    ${escapeHtml(sp.caballo_nombre)}
+                  </span>
+                </td>
+                <td class="contact-cell">
+                  ${
+                    waUrl
+                      ? `<a href="${waUrl}" target="_blank" rel="noopener noreferrer" class="whatsapp-link" title="Abrir WhatsApp">💬 ${escapeHtml(sp.telefono || '')}</a>`
+                      : `<span style="color: var(--muted);">${sp.telefono ? escapeHtml(sp.telefono) : 'Sin teléfono'}</span>`
+                  }
+                  ${sp.email ? `<span class="email-text">✉️ ${escapeHtml(sp.email)}</span>` : ''}
+                </td>
+                <td style="font-weight: 600; white-space: nowrap;">
+                  ${sp.monto ? `$${Number(sp.monto).toLocaleString('es-AR')} ${sp.moneda || 'ARS'}` : '-'}
+                </td>
+                ${monthCells}
+                <td class="center">
+                  <div class="row-actions">
+                    <button type="button" class="btn-icon btn-edit" data-id="${sp.id}" title="Editar padrino">✏️</button>
+                    <button type="button" class="btn-icon delete btn-delete" data-id="${sp.id}" title="Eliminar padrino">🗑️</button>
+                  </div>
+                </td>
+              </tr>
+            `;
+          })
+          .join('');
+
+        // Listeners para los botones de toggle de reportes
+        document.querySelectorAll('.report-toggle-btn').forEach((btn) => {
+          btn.addEventListener('click', handleReportToggle);
+        });
+
+        // Listeners para editar y borrar
+        document.querySelectorAll('.btn-edit').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
+            openEditModal(id!);
+          });
+        });
+
+        document.querySelectorAll('.btn-delete').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
+            deleteSponsor(id!);
+          });
+        });
+      }
+
+      // Alternar estado de reporte mensual
+      async function handleReportToggle(e: Event) {
+        const btn = e.currentTarget as HTMLButtonElement;
+        const padrinoId = btn.getAttribute('data-padrino-id')!;
+        const month = Number(btn.getAttribute('data-month'));
+        const isCurrentlySent = btn.classList.contains('sent');
+        const nextState = !isCurrentlySent;
+
+        // UI Optimista inmediata
+        btn.classList.toggle('sent', nextState);
+        btn.innerHTML = nextState ? '✓' : '•';
+
+        if (isLiveDb && supabase) {
+          try {
+            if (nextState) {
+              const { error } = await supabase.from('reportes_mensuales').upsert({
+                padrino_id: padrinoId,
+                anio: activeYear,
+                mes: month,
+                enviado: true,
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'padrino_id,anio,mes' });
+              if (error) throw error;
+            } else {
+              const { error } = await supabase
+                .from('reportes_mensuales')
+                .delete()
+                .eq('padrino_id', padrinoId)
+                .eq('anio', activeYear)
+                .eq('mes', month);
+              if (error) throw error;
+            }
+          } catch (err) {
+            console.error('Error actualizando reporte en Supabase:', err);
+            showToast('Error de sincronización con la base', true);
+            // Revertir UI
+            btn.classList.toggle('sent', isCurrentlySent);
+            btn.innerHTML = isCurrentlySent ? '✓' : '•';
+            return;
+          }
+        }
+
+        // Actualizar array en memoria
+        if (nextState) {
+          reports.push({ padrino_id: padrinoId, anio: activeYear, mes: month, enviado: true });
+        } else {
+          reports = reports.filter(
+            (r) => !(r.padrino_id === padrinoId && r.anio === activeYear && r.mes === month)
+          );
+        }
+
+        if (!isLiveDb) {
+          saveLocalStorage();
+        }
+
+        updateMetrics();
+        showToast(nextState ? `Reporte de ${MONTH_NAMES[month - 1]} marcado como enviado` : `Reporte desmarcado`);
+      }
+
+      // Actualizar Métricas
+      function updateMetrics() {
+        const activeSponsors = sponsors.filter((s) => s.estado === 'activo');
+        document.getElementById('metricActiveSponsors')!.textContent = String(activeSponsors.length);
+        document.getElementById('metricTotalSponsors')!.textContent = `Total registrados: ${sponsors.length}`;
+
+        // Caballos únicos con padrino
+        const uniqueHorses = new Set(activeSponsors.map((s) => s.caballo_id));
+        document.getElementById('metricSponsoredHorses')!.textContent = String(uniqueHorses.size);
+
+        // Reportes de este mes
+        const curM = config.currentMonth;
+        let sentThisMonth = 0;
+        activeSponsors.forEach((sp) => {
+          const sent = reports.some(
+            (r) => r.padrino_id === sp.id && r.anio === config.currentYear && r.mes === curM && r.enviado
+          );
+          if (sent) sentThisMonth++;
+        });
+
+        const pendingThisMonth = activeSponsors.length - sentThisMonth;
+        document.getElementById('metricMonthReports')!.textContent = `${sentThisMonth} / ${activeSponsors.length}`;
+        const pendingEl = document.getElementById('metricMonthPending')!;
+        pendingEl.textContent = `${pendingThisMonth} pendientes de envío`;
+        pendingEl.className = pendingThisMonth > 0 ? 'metric-sub warning' : 'metric-sub';
+
+        // Total fondos mensuales estimados
+        const totalFunds = activeSponsors.reduce((acc, s) => acc + (Number(s.monto) || 0), 0);
+        document.getElementById('metricMonthlyFunds')!.textContent = `$${totalFunds.toLocaleString('es-AR')}`;
+      }
+
+      // Modal Alta / Edición
+      function openAddModal() {
+        (document.getElementById('formSponsorId') as HTMLInputElement).value = '';
+        sponsorForm.reset();
+        (document.getElementById('formFechaInicio') as HTMLInputElement).value = new Date().toISOString().split('T')[0];
+        modalTitle.textContent = 'Nuevo Padrino';
+        sponsorModal.classList.add('open');
+      }
+
+      function openEditModal(id: string) {
+        const sp = sponsors.find((s) => s.id === id);
+        if (!sp) return;
+
+        (document.getElementById('formSponsorId') as HTMLInputElement).value = sp.id;
+        (document.getElementById('formNombre') as HTMLInputElement).value = sp.nombre;
+        (document.getElementById('formCaballoId') as HTMLSelectElement).value = sp.caballo_id;
+        (document.getElementById('formFechaInicio') as HTMLInputElement).value = sp.fecha_inicio || '';
+        (document.getElementById('formEstado') as HTMLSelectElement).value = sp.estado;
+        (document.getElementById('formTelefono') as HTMLInputElement).value = sp.telefono || '';
+        (document.getElementById('formEmail') as HTMLInputElement).value = sp.email || '';
+        (document.getElementById('formMonto') as HTMLInputElement).value = sp.monto ? String(sp.monto) : '';
+        (document.getElementById('formMoneda') as HTMLSelectElement).value = sp.moneda || 'ARS';
+        (document.getElementById('formNotas') as HTMLTextAreaElement).value = sp.notas || '';
+
+        modalTitle.textContent = 'Editar Padrino';
+        sponsorModal.classList.add('open');
+      }
+
+      function closeModal() {
+        sponsorModal.classList.remove('open');
+      }
+
+      sponsorForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const id = (document.getElementById('formSponsorId') as HTMLInputElement).value;
+        const caballoSelect = document.getElementById('formCaballoId') as HTMLSelectElement;
+        const selectedOpt = caballoSelect.options[caballoSelect.selectedIndex];
+        const caballoNombre = selectedOpt.getAttribute('data-name') || selectedOpt.text;
+
+        const payload: Partial<Sponsor> = {
+          nombre: (document.getElementById('formNombre') as HTMLInputElement).value.trim(),
+          caballo_id: caballoSelect.value,
+          caballo_nombre: caballoNombre,
+          fecha_inicio: (document.getElementById('formFechaInicio') as HTMLInputElement).value,
+          estado: (document.getElementById('formEstado') as HTMLSelectElement).value as any,
+          telefono: (document.getElementById('formTelefono') as HTMLInputElement).value.trim() || undefined,
+          email: (document.getElementById('formEmail') as HTMLInputElement).value.trim() || undefined,
+          monto: Number((document.getElementById('formMonto') as HTMLInputElement).value) || undefined,
+          moneda: (document.getElementById('formMoneda') as HTMLSelectElement).value,
+          notas: (document.getElementById('formNotas') as HTMLTextAreaElement).value.trim() || undefined,
+        };
+
+        if (id) {
+          // Edición
+          if (isLiveDb && supabase) {
+            const { error } = await supabase.from('padrinos').update(payload).eq('id', id);
+            if (error) {
+              console.error(error);
+              showToast('Error al actualizar en Supabase', true);
+              return;
+            }
+          }
+          const idx = sponsors.findIndex((s) => s.id === id);
+          if (idx !== -1) sponsors[idx] = { ...sponsors[idx], ...payload };
+          showToast('Padrino actualizado con éxito');
+        } else {
+          // Alta
+          const newId = isLiveDb ? undefined : `local-${Date.now()}`;
+          if (isLiveDb && supabase) {
+            const { data, error } = await supabase.from('padrinos').insert([payload]).select().single();
+            if (error) {
+              console.error(error);
+              showToast('Error al guardar en Supabase', true);
+              return;
+            }
+            if (data) sponsors.unshift(data);
+          } else {
+            const newSponsor = { ...payload, id: newId!, created_at: new Date().toISOString() } as Sponsor;
+            sponsors.unshift(newSponsor);
+          }
+          showToast('Nuevo padrino registrado');
+        }
+
+        if (!isLiveDb) saveLocalStorage();
+
+        closeModal();
+        renderTable();
+        updateMetrics();
+      });
+
+      async function deleteSponsor(id: string) {
+        const sp = sponsors.find((s) => s.id === id);
+        if (!confirm(`¿Eliminar a ${sp?.nombre || 'este padrino'} de la planilla?`)) return;
+
+        if (isLiveDb && supabase) {
+          const { error } = await supabase.from('padrinos').delete().eq('id', id);
+          if (error) {
+            console.error(error);
+            showToast('Error al eliminar en Supabase', true);
+            return;
+          }
+        }
+
+        sponsors = sponsors.filter((s) => s.id !== id);
+        reports = reports.filter((r) => r.padrino_id !== id);
+
+        if (!isLiveDb) saveLocalStorage();
+
+        renderTable();
+        updateMetrics();
+        showToast('Padrino eliminado');
+      }
+
+      // Exportar a CSV / Excel
+      function exportToCsv() {
+        if (sponsors.length === 0) {
+          alert('No hay padrinos para exportar.');
+          return;
+        }
+
+        const headers = [
+          'Nombre',
+          'Caballo',
+          'ID Caballo',
+          'Estado',
+          'Fecha Inicio',
+          'Telefono',
+          'Email',
+          'Aporte Mensual',
+          'Moneda',
+          'Notas',
+          ...MONTH_NAMES.map((m) => `${m} ${activeYear}`),
+        ];
+
+        const rows = sponsors.map((sp) => {
+          const monthValues = Array.from({ length: 12 }, (_, i) => {
+            const isSent = reports.some(
+              (r) => r.padrino_id === sp.id && r.anio === activeYear && r.mes === i + 1 && r.enviado
+            );
+            return isSent ? 'SI' : 'NO';
+          });
+
+          return [
+            `"${(sp.nombre || '').replace(/"/g, '""')}"`,
+            `"${(sp.caballo_nombre || '').replace(/"/g, '""')}"`,
+            `"${sp.caballo_id || ''}"`,
+            `"${sp.estado}"`,
+            `"${sp.fecha_inicio || ''}"`,
+            `"${sp.telefono || ''}"`,
+            `"${sp.email || ''}"`,
+            `"${sp.monto || 0}"`,
+            `"${sp.moneda || 'ARS'}"`,
+            `"${(sp.notas || '').replace(/"/g, '""')}"`,
+            ...monthValues,
+          ].join(';');
+        });
+
+        const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `padrinos-almas-libres-${activeYear}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Planilla CSV descargada');
+      }
+
+      // Configurar Listeners generales
+      function setupEventListeners() {
+        btnOpenAddModal.addEventListener('click', openAddModal);
+        btnModalClose.addEventListener('click', closeModal);
+        btnModalCancel.addEventListener('click', closeModal);
+        sponsorModal.addEventListener('click', (e) => {
+          if (e.target === sponsorModal) closeModal();
+        });
+
+        searchInput.addEventListener('input', renderTable);
+        filterHorse.addEventListener('change', renderTable);
+        filterStatus.addEventListener('change', renderTable);
+        btnExportCsv.addEventListener('click', exportToCsv);
+      }
+
+      function showToast(msg: string, isError = false) {
+        toastMessage.textContent = msg;
+        toastEl.style.background = isError ? '#c92a2a' : 'var(--green-2)';
+        toastEl.classList.add('show');
+        setTimeout(() => toastEl.classList.remove('show'), 3000);
+      }
+
+      function escapeHtml(str: string) {
+        return (str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      // Arrancar
+      initAuth();
+    </script>
+  </body>
+</html>

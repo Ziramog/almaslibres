@@ -1,0 +1,42 @@
+---
+import { siteConfig } from '@/data/siteConfig';
+import { contactPendingLabel, getContactHref } from '@/lib/cta';
+
+const helpHref = getContactHref('Hola, quiero recibir información para ayudar a Fundación Almas Libres.');
+---
+<header class="site-header" id="top">
+  <a class="brand" href="/" aria-label="Ir al inicio de Fundación Almas Libres">
+    <span class="brand-mark" aria-hidden="true">AL</span>
+    <span class="brand-copy">
+      <strong>Fundación Almas Libres</strong>
+      <small>Santuario equino</small>
+    </span>
+  </a>
+
+  <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+    <span>Menú</span>
+  </button>
+
+  <nav class="site-nav" id="site-nav" aria-label="Navegación principal">
+    {siteConfig.nav.map((item) => <a href={item.href}>{item.label}</a>)}
+  </nav>
+
+  {helpHref ? (
+    <a class="header-cta" href={helpHref} data-event="help_cta_clicked" data-location="header">Quiero ayudar</a>
+  ) : (
+    <span class="header-cta is-disabled" aria-disabled="true" title={contactPendingLabel}>Contacto pendiente</span>
+  )}
+</header>
+
+<script>
+  const toggle = document.querySelector<HTMLButtonElement>('.nav-toggle');
+  const nav = document.querySelector<HTMLElement>('.site-nav');
+
+  if (toggle && nav) {
+    toggle.addEventListener('click', () => {
+      const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!isOpen));
+      nav.classList.toggle('is-open', !isOpen);
+    });
+  }
+</script>

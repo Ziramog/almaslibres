@@ -1,0 +1,60 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import ContactActions from '@/components/ContactActions.astro';
+import HorseGrid from '@/components/HorseGrid.astro';
+import { publicHorses } from '@/data/horses';
+---
+<BaseLayout
+  title="Apadriná un caballo — Fundación Almas Libres"
+  description="Conocé la experiencia de padrinazgo equino de Fundación Almas Libres. Preview con fichas borrador pendientes de validación."
+>
+  <section class="section-shell page-hero">
+    <p class="eyebrow">Padrinazgo equino</p>
+    <h1>Apadriná un caballo</h1>
+    <p>Elegí una vida para acompañar y convertí tu aporte mensual en alimento, cuidado y sostén para toda la manada.</p>
+    <div class="note-box"><strong>Aclaración:</strong> El padrinazgo es simbólico y no exclusivo. No implica propiedad ni adopción. Los aportes se destinan al cuidado general del santuario.</div>
+  </section>
+
+  <section class="section-shell intro-grid">
+    <div>
+      <p class="eyebrow">Fichas en preparación</p>
+      <h2>Conocé algunas de las vidas que hoy acompañamos</h2>
+      <p>Cada ficha representa una forma de acercarte a la causa. Podés elegir un caballo para acompañar y sumar tu ayuda al cuidado general del santuario.</p>
+    </div>
+    <div class="note-box">
+      <strong>Preview segura</strong>
+      <p>Los seis registros son maqueta. No contienen nombres, historias, fotos ni datos médicos inventados.</p>
+    </div>
+  </section>
+
+  <HorseGrid horses={publicHorses} />
+
+  <section class="section-shell split-section">
+    <div>
+      <p class="eyebrow">Cómo sumarte</p>
+      <h2>Primero confirmamos el canal, después avanzás con tranquilidad</h2>
+      <p>El flujo queda preparado para WhatsApp, email, link externo de donación o checkout futuro. En esta fase no se integra pago real ni se publica un medio no aprobado.</p>
+    </div>
+    <div class="feature-grid single-column">
+      <article><h3>1. Elegís una ficha</h3><p>La ficha seleccionada viaja al CTA para que la consulta sea clara.</p></article>
+      <article><h3>2. La Fundación responde</h3><p>Anne o Magalí podrán validar modalidad, monto y periodicidad antes de aceptar aportes.</p></article>
+      <article><h3>3. El pago queda abierto</h3><p>La arquitectura admite link externo ahora y checkout/webhook más adelante.</p></article>
+    </div>
+  </section>
+
+  <section class="section-shell faq-section">
+    <p class="eyebrow">Preguntas frecuentes</p>
+    <h2>Sobre el padrinazgo</h2>
+    <details><summary>¿El padrinazgo es una adopción?</summary><p>No. Es una forma simbólica de acompañar económicamente el cuidado general.</p></details>
+    <details><summary>¿Puedo elegir un caballo?</summary><p>Sí, la consulta puede iniciar desde una ficha, pero el modelo final debe ser aprobado por la Fundación.</p></details>
+    <details><summary>¿Hay un monto definido?</summary><p>Todavía no se publica ningún monto. Debe validarse con Anne, Magalí y Juan.</p></details>
+    <details><summary>¿El pago ya está integrado?</summary><p>No. El sitio queda preparado para link externo o integración futura, pero no procesa pagos en esta preview.</p></details>
+  </section>
+
+  <section class="section-shell contact-section">
+    <p class="eyebrow">Contacto</p>
+    <h2>¿Querés recibir información para apadrinar?</h2>
+    <p>El canal definitivo todavía está pendiente. Cuando esté validado, los botones podrán abrir WhatsApp, email, link de donación o flujo de checkout.</p>
+    <ContactActions context="sponsorship" primaryLabel="Quiero apadrinar" secondaryLabel="Consultar forma de aporte" showDonation />
+  </section>
+</BaseLayout>

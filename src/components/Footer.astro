@@ -1,0 +1,12 @@
+---
+import { siteConfig } from '@/data/siteConfig';
+---
+<footer class="site-footer">
+  <div>
+    <strong>Fundación Almas Libres</strong>
+    <p>Base digital en preview. No publicar como sitio oficial hasta validar datos institucionales, contacto, fotos y modelo de padrinazgo.</p>
+  </div>
+  <nav aria-label="Navegación secundaria">
+    {siteConfig.nav.map((item) => <a href={item.href}>{item.label}</a>)}
+  </nav>
+</footer>

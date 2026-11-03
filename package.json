@@ -1,0 +1,18 @@
+{
+  "name": "almas-libres",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro check && astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/check": "latest",
+    "@supabase/supabase-js": "^2.118.0",
+    "astro": "latest",
+    "typescript": "latest"
+  }
+}

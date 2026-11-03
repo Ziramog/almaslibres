@@ -1,0 +1,36 @@
+---
+import { contactPendingLabel, getContactHref, getDonationHref, paymentPendingLabel } from '@/lib/cta';
+
+interface Props {
+  context: 'hero' | 'sponsorship' | 'help' | 'contact' | 'horse';
+  primaryLabel?: string;
+  secondaryLabel?: string;
+  message?: string;
+  showDonation?: boolean;
+}
+
+const {
+  context,
+  primaryLabel = 'Hablar por WhatsApp',
+  secondaryLabel = 'Hacer una donación',
+  message = 'Hola, quiero recibir información para ayudar a Fundación Almas Libres.',
+  showDonation = false,
+} = Astro.props;
+
+const contactHref = getContactHref(message);
+const donationHref = getDonationHref();
+const contactFallbackLabel = context === 'help' || context === 'horse' ? 'Contacto pendiente' : contactPendingLabel;
+---
+<div class="action-row">
+  {contactHref ? (
+    <a class="btn btn-primary" href={contactHref} data-event="whatsapp_contact_clicked" data-location={context}>{primaryLabel}</a>
+  ) : (
+    <span class="btn btn-primary is-disabled" aria-disabled="true" title={contactPendingLabel}>{contactFallbackLabel}</span>
+  )}
+
+  {showDonation && (donationHref ? (
+    <a class="btn btn-secondary" href={donationHref} data-event="donation_interest_clicked" data-location={context}>{secondaryLabel}</a>
+  ) : (
+    <span class="btn btn-secondary is-disabled" aria-disabled="true">{paymentPendingLabel}</span>
+  ))}
+</div>

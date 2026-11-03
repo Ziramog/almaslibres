@@ -1,0 +1,225 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import ContactActions from '@/components/ContactActions.astro';
+import HorseGrid from '@/components/HorseGrid.astro';
+import { featuredHorses } from '@/data/horses';
+import '@/styles/home.css';
+
+const workAreas = [
+  {
+    number: '01',
+    title: 'Alimentación y sostén diario',
+    description: 'El cuidado empieza por la continuidad. La manada necesita una rutina estable de alimentación y atención cotidiana que no puede depender de acciones aisladas.',
+    scope: 'Sostener el día a día es la primera responsabilidad del santuario.',
+  },
+  {
+    number: '02',
+    title: 'Observación responsable',
+    description: 'Acompañar también es mirar con atención. La observación cotidiana permite reconocer cambios, necesidades y señales que requieren una respuesta o seguimiento.',
+    scope: 'Sin inventar diagnósticos ni convertir cada historia en espectáculo.',
+  },
+  {
+    number: '03',
+    title: 'Asistencia coordinada',
+    description: 'Cuando una situación lo requiere, se gestionan apoyos y asistencia adecuada. La Fundación articula respuestas posibles sin presentarse como un servicio veterinario propio.',
+    scope: 'Cada intervención debe respetar información real y criterio responsable.',
+  },
+  {
+    number: '04',
+    title: 'Bienestar y entorno respetuoso',
+    description: 'Cuidar no es solamente cubrir una urgencia. También implica sostener calma, espacio, vínculos de manada y condiciones compatibles con el bienestar de los caballos.',
+    scope: 'El bienestar orienta las decisiones, no la exposición pública.',
+  },
+  {
+    number: '05',
+    title: 'Construcción del santuario',
+    description: 'Almas Libres está construyendo una base más estable para cuidar: organización, infraestructura, recursos y capacidad de respuesta para sostener el proyecto en el tiempo.',
+    scope: 'La necesidad actual se publicará solo cuando tenga datos verificables.',
+  },
+  {
+    number: '06',
+    title: 'Una red que hace posible el cuidado',
+    description: 'Personas, profesionales, comercios y empresas pueden transformar sensibilidad en continuidad. La red permite que el compromiso no recaiga en una sola voluntad.',
+    scope: 'Cada forma de ayuda se coordina según una necesidad real.',
+  },
+];
+
+const careRhythm = [
+  { step: 'Observar', text: 'Reconocer necesidades sin invadir ni dramatizar.' },
+  { step: 'Priorizar', text: 'Distinguir lo urgente de lo que necesita continuidad.' },
+  { step: 'Coordinar', text: 'Articular personas, recursos y asistencia cuando corresponde.' },
+  { step: 'Sostener', text: 'Convertir una respuesta puntual en cuidado responsable.' },
+];
+---
+<BaseLayout
+  bodyClass="home-page"
+  title="Fundación Almas Libres — Santuario equino"
+  description="Fundación Almas Libres sostiene un espacio de cuidado responsable para caballos asilvestrados y construye una red de ayuda concreta y transparente."
+>
+  <section class="immersive-hero" aria-labelledby="home-title">
+    <img
+      class="immersive-hero-image"
+      src="/images/hero-almas-libres.jpg"
+      alt="Una persona acaricia a un caballo en un espacio de Fundación Almas Libres."
+      width="1280"
+      height="960"
+      fetchpriority="high"
+      decoding="async"
+    />
+    <div class="immersive-hero-shade" aria-hidden="true"></div>
+
+    <div class="immersive-hero-content">
+      <div class="chapter-line chapter-line-light"><span>01</span><span>Fundación Almas Libres</span></div>
+      <h1 id="home-title">Cuidar la libertad también es estar todos los días</h1>
+      <p>Sostenemos un espacio donde caballos asilvestrados reciben alimento, cuidado y acompañamiento responsable. Construimos santuario con presencia, continuidad y una red que transforma ayuda en bienestar concreto.</p>
+      <div class="action-row immersive-actions">
+        <a class="btn btn-primary" href="#que-hacemos">Conocé nuestro trabajo</a>
+        <a class="btn btn-glass" href="/apadrinar">Apadriná un caballo</a>
+      </div>
+    </div>
+
+    <div class="immersive-caption">
+      <span>Una imagen real</span>
+      <p>Presencia, respeto y cuidado cotidiano.</p>
+    </div>
+    <a class="scroll-cue" href="#que-hacemos" aria-label="Continuar hacia Qué hacemos"><span aria-hidden="true"></span>Descubrir</a>
+  </section>
+
+  <section class="trust-band" aria-label="Principios de trabajo">
+    <div><span>01</span><strong>Cuidado cotidiano</strong><p>La continuidad importa tanto como la urgencia.</p></div>
+    <div><span>02</span><strong>Bienestar primero</strong><p>Sin morbo, espectáculo ni promesas vacías.</p></div>
+    <div><span>03</span><strong>Ayuda con destino</strong><p>Cada colaboración debe responder a una necesidad real.</p></div>
+  </section>
+
+  <section class="work-chapter" id="que-hacemos" aria-labelledby="work-title">
+    <div class="section-shell work-shell">
+      <header class="work-intro">
+        <div class="chapter-line chapter-line-light"><span>02</span><span>Qué hacemos</span></div>
+        <p class="work-kicker">El corazón del santuario</p>
+        <h2 id="work-title">No es una acción aislada.<br />Es un compromiso que se sostiene.</h2>
+        <p class="work-lead">El bienestar de los caballos depende de una estructura capaz de acompañar necesidades concretas con continuidad, criterio y respeto. Esto es lo que Almas Libres trabaja para sostener.</p>
+      </header>
+
+      <div class="work-layout">
+        <aside class="work-art" aria-label="Representación editorial del cuidado cotidiano">
+          <img src="/illustrations/care-rhythm.svg" alt="Ilustración abstracta de caballos, paisaje y ciclos de cuidado." loading="lazy" decoding="async" />
+          <div class="work-art-note">
+            <span class="pulse-dot" aria-hidden="true"></span>
+            <p><strong>Una vida digna necesita continuidad.</strong><br />El cuidado sucede antes, durante y después de cada necesidad visible.</p>
+          </div>
+        </aside>
+
+        <div class="work-list">
+          {workAreas.map((area) => (
+            <article class="work-item">
+              <span class="work-number">{area.number}</span>
+              <div>
+                <h3>{area.title}</h3>
+                <p>{area.description}</p>
+                <p class="work-scope">{area.scope}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="care-rhythm section-shell" aria-labelledby="rhythm-title">
+    <div class="care-rhythm-heading">
+      <div class="chapter-line"><span>03</span><span>Cómo cuidamos</span></div>
+      <h2 id="rhythm-title">El cuidado no ocurre en un solo momento</h2>
+      <p>Se construye como un ciclo: observar, priorizar, coordinar y sostener. Esa secuencia permite responder sin improvisar ni prometer más de lo que la Fundación puede cumplir.</p>
+    </div>
+    <ol class="rhythm-list">
+      {careRhythm.map((item, index) => (
+        <li>
+          <span>{String(index + 1).padStart(2, '0')}</span>
+          <div><h3>{item.step}</h3><p>{item.text}</p></div>
+        </li>
+      ))}
+    </ol>
+    <div class="care-principle">
+      <p>“Cuidar es hacer lugar para que cada caballo pueda vivir con respeto, sin convertir su historia en un recurso de impacto.”</p>
+      <span>Principio editorial de Almas Libres · voz pendiente de aprobación institucional</span>
+    </div>
+  </section>
+
+  <section class="sponsorship-v2 section-shell" id="apadrinar">
+    <div class="sponsorship-v2-copy">
+      <div class="chapter-line"><span>04</span><span>Padrinazgo equino</span></div>
+      <h2>Apadriná una vida.<br />Sostené a toda la manada.</h2>
+      <p>El padrinazgo crea un vínculo cercano con un caballo, pero su aporte acompaña el cuidado general del santuario. Así, la ayuda puede llegar donde más se necesita.</p>
+      <div class="sponsorship-disclaimer"><strong>No implica propiedad ni adopción.</strong><span>El modelo definitivo —compartido o exclusivo— todavía debe ser validado por Anne y Magalí.</span></div>
+      <a class="btn btn-primary" href="/apadrinar">Conocer la experiencia de padrinazgo</a>
+    </div>
+    <div class="sponsorship-v2-grid">
+      <HorseGrid horses={featuredHorses} variant="compact" />
+    </div>
+  </section>
+
+  <section class="help-chapter" id="ayudar">
+    <div class="section-shell">
+      <div class="help-heading">
+        <div>
+          <div class="chapter-line chapter-line-light"><span>05</span><span>Cómo ayudar</span></div>
+          <h2>La sensibilidad se vuelve concreta cuando encuentra una forma de actuar</h2>
+        </div>
+        <p>No todas las personas pueden colaborar de la misma manera. Por eso la Fundación deja preparada una arquitectura flexible para aportes puntuales, mensuales, alianzas y ayuda en especie.</p>
+      </div>
+      <div class="help-editorial-grid">
+        <article><span>01</span><h3>Donación única</h3><p>Una ayuda puntual para acompañar una necesidad concreta y validada.</p><ContactActions context="help" primaryLabel="Consultar donación" /></article>
+        <article><span>02</span><h3>Socio/a mensual</h3><p>Continuidad para sostener el trabajo con mayor previsibilidad.</p><ContactActions context="help" primaryLabel="Quiero asociarme" /></article>
+        <article><span>03</span><h3>Sponsor empresa</h3><p>Alianzas con comercios, profesionales y empresas comprometidas con la causa.</p><ContactActions context="help" primaryLabel="Ser sponsor" /></article>
+        <article><span>04</span><h3>Donación en especie</h3><p>Insumos, servicios o logística, siempre coordinados según una necesidad real.</p><ContactActions context="help" primaryLabel="Coordinar ayuda" /></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="transparency-v2 section-shell" id="transparencia">
+    <div class="transparency-statement">
+      <div class="chapter-line"><span>06</span><span>Transparencia</span></div>
+      <h2>La confianza no se declara. Se construye mostrando.</h2>
+      <p>Esta sección reunirá prioridades vigentes, destino general de aportes y reportes aprobados. Mientras no existan datos verificables, no mostramos cifras, barras de progreso ni documentos simulados.</p>
+    </div>
+    <div class="transparency-board">
+      <article><span>Próximamente</span><h3>Necesidades vigentes</h3><p>Título, objetivo real, fecha de actualización y estado.</p></article>
+      <article><span>Próximamente</span><h3>Destino de los aportes</h3><p>Información general aprobada por la Fundación.</p></article>
+      <article><span>Próximamente</span><h3>Reportes</h3><p>Documentos reales, sin archivos ni cifras de maqueta.</p></article>
+    </div>
+  </section>
+
+  <section class="about-v2 section-shell" id="fundacion">
+    <div class="about-word" aria-hidden="true">AL</div>
+    <div>
+      <div class="chapter-line"><span>07</span><span>La Fundación</span></div>
+      <h2>Una organización dedicada al cuidado y al respeto</h2>
+      <p>Fundación Almas Libres trabaja para sostener un espacio de cuidado para caballos y construir una red de personas, profesionales, comercios y empresas comprometidas con esta causa.</p>
+      <p class="small-note">La publicación de nombres, cargos, fotos, datos legales y cifra pública de caballos requiere aprobación institucional.</p>
+    </div>
+    <aside>
+      <p class="eyebrow">Red de aliados</p>
+      <h3>El santuario no se construye en soledad</h3>
+      <p>Los sponsors y aliados se incorporarán cuando existan logos y autorizaciones reales.</p>
+    </aside>
+  </section>
+
+  <section class="section-shell faq-section faq-v2">
+    <div class="chapter-line"><span>08</span><span>Preguntas frecuentes</span></div>
+    <h2>Antes de sumarte, es importante saber</h2>
+    <details><summary>¿Qué significa apadrinar un caballo?</summary><p>Es realizar un aporte periódico para acompañar el cuidado general de los caballos del santuario.</p></details>
+    <details><summary>¿El caballo pasa a ser mío?</summary><p>No. El padrinazgo no implica propiedad, adopción ni derechos sobre el animal.</p></details>
+    <details><summary>¿Mi aporte se usa únicamente para ese caballo?</summary><p>El vínculo es simbólico y cercano, pero el aporte ayuda a sostener las necesidades generales del santuario y de la manada.</p></details>
+    <details><summary>¿Puedo realizar una donación única?</summary><p>Sí. La Fundación podrá informar las formas vigentes una vez validado el canal de contacto y pago.</p></details>
+    <details><summary>¿Se puede visitar el santuario?</summary><p>Las visitas, si están habilitadas, se coordinan previamente según bienestar, seguridad y capacidad operativa. No se publica dirección ni mapa.</p></details>
+  </section>
+
+  <section class="contact-v2" id="contacto">
+    <div class="section-shell">
+      <p class="eyebrow">Contacto</p>
+      <h2>Ayudar empieza por una conversación</h2>
+      <p>Cuando el canal institucional esté validado, desde acá se podrá consultar por padrinazgo, donaciones, alianzas o colaboración en especie.</p>
+      <ContactActions context="contact" primaryLabel="Hablar por WhatsApp" secondaryLabel="Conocer formas de donar" showDonation />
+    </div>
+  </section>
+</BaseLayout>

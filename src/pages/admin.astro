@@ -1,9 +1,12 @@
 ---
-import { horses } from '@/data/horses';
+import { horses as staticHorses } from '@/data/horses';
 import '@/styles/global.css';
 import '@/styles/admin.css';
 
-const adminPin = import.meta.env.PUBLIC_ADMIN_PIN || '';
+const adminPin =
+  import.meta.env.PUBLIC_ADMIN_PIN ||
+  (import.meta.env as any).ADMIN_PIN ||
+  '';
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1; // 1-12
 ---
@@ -13,7 +16,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Planilla de Padrinos — Fundación Almas Libres</title>
+    <title>Panel de Gestión — Fundación Almas Libres</title>
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
@@ -28,7 +31,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       <div class="lock-card">
         <span class="lock-badge">Acceso Interno</span>
         <h1>Fundación Almas Libres</h1>
-        <p>Ingresá la clave de acceso del equipo para gestionar la planilla de padrinos.</p>
+        <p>Ingresá la clave de acceso del equipo para gestionar la manada y los padrinos.</p>
         <form id="pinForm" class="pin-form" onsubmit="return false;">
           <input
             type="password"
@@ -52,19 +55,19 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       <header class="admin-topbar">
         <div class="admin-branding">
           <h1>
-            <span>🐴</span> Planilla de Padrinazgo
+            <span>🐴</span> Panel de Gestión Equina
           </h1>
           <div class="admin-subtitle">
             <span>Fundación Almas Libres</span>
-            <span class="status-pill demo" id="dbStatusPill">
-              <span id="dbStatusDot">●</span> <span id="dbStatusText">Cargando...</span>
+            <span class="status-pill live" id="dbStatusPill" style="display: none;">
+              <span id="dbStatusDot">●</span> <span id="dbStatusText">En línea</span>
             </span>
           </div>
         </div>
 
         <div class="admin-actions">
-          <!-- Selector de Año -->
-          <div class="year-selector-group">
+          <!-- Selector de Año (para la planilla de reportes) -->
+          <div class="year-selector-group" id="yearSelectorGroup">
             <button type="button" class="year-btn" data-year={currentYear - 1}>{currentYear - 1}</button>
             <button type="button" class="year-btn active" data-year={currentYear}>{currentYear}</button>
             <button type="button" class="year-btn" data-year={currentYear + 1}>{currentYear + 1}</button>
@@ -73,8 +76,11 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           <button type="button" id="btnExportCsv" class="btn-secondary" title="Descargar como Excel/CSV">
             <span>📥</span> Exportar CSV
           </button>
-          <button type="button" id="btnOpenAddModal" class="btn-primary">
-            <span>+</span> Nuevo Padrino
+          <button type="button" id="btnOpenAddHorseModal" class="btn-secondary" title="Agregar un caballo a la manada">
+            <span>🐴</span> + Nuevo Caballo
+          </button>
+          <button type="button" id="btnOpenAddModal" class="btn-primary" title="Registrar nuevo padrino">
+            <span>👤</span> + Nuevo Padrino
           </button>
           <button type="button" id="btnLogout" class="btn-secondary" style="padding: 0.65rem 0.8rem;" title="Cerrar sesión">
             <span>🔒</span>
@@ -82,109 +88,154 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         </div>
       </header>
 
-      <!-- Banner de configuración si falta Supabase -->
-      <div id="setupBanner" class="setup-banner" style="display: none;">
-        <div>
-          <strong>⚡ Modo de Prueba Activo (Navegador):</strong> Los datos se están guardando localmente en este dispositivo.
-          Para sincronizar con la base de datos permanente en la nube para todo el equipo, agregá <code>PUBLIC_SUPABASE_URL</code> y <code>PUBLIC_SUPABASE_ANON_KEY</code> en tu panel de Vercel o archivo <code>.env</code>.
+
+      <!-- Pestañas de Navegación -->
+      <nav class="admin-nav-tabs">
+        <button type="button" class="admin-tab-btn active" id="tabBtnSponsors">
+          <span>📋</span> Planilla de Padrinos <span class="tab-badge" id="tabBadgeSponsors">0</span>
+        </button>
+        <button type="button" class="admin-tab-btn" id="tabBtnHorses">
+          <span>🐴</span> Manada de Caballos <span class="tab-badge" id="tabBadgeHorses">0</span>
+        </button>
+      </nav>
+
+      <!-- ========================================== -->
+      <!-- VISTA 1: PLANILLA DE PADRINOS              -->
+      <!-- ========================================== -->
+      <div id="viewSponsors">
+        <!-- Tarjetas de Métricas -->
+        <section class="metrics-row">
+          <article class="metric-card">
+            <div class="metric-label">Padrinos Activos</div>
+            <div class="metric-value" id="metricActiveSponsors">0</div>
+            <div class="metric-sub" id="metricTotalSponsors">Total registrados: 0</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Caballos con Padrino</div>
+            <div class="metric-value" id="metricSponsoredHorses">0</div>
+            <div class="metric-sub" id="metricTotalHorsesCount">de 0 en la manada</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Reportes de <span id="currentMonthNameLabel">este mes</span></div>
+            <div class="metric-value" id="metricMonthReports">0 / 0</div>
+            <div class="metric-sub warning" id="metricMonthPending">0 pendientes de envío</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Aporte Mensual Estimado</div>
+            <div class="metric-value" id="metricMonthlyFunds">$0</div>
+            <div class="metric-sub">Sostén para el santuario</div>
+          </article>
+        </section>
+
+        <!-- Barra de Filtros y Búsqueda de Padrinos -->
+        <div class="admin-filterbar">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              id="searchInput"
+              class="search-input"
+              placeholder="Buscar por nombre, teléfono o email..."
+            />
+          </div>
+
+          <div class="filter-selects">
+            <select id="filterHorse" class="filter-select">
+              <option value="all">Todos los caballos</option>
+            </select>
+
+            <select id="filterStatus" class="filter-select">
+              <option value="all">Todos los estados</option>
+              <option value="activo" selected>Solo Activos</option>
+              <option value="pausado">Pausados</option>
+              <option value="baja">De Baja</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Tabla / Planilla de Padrinos -->
+        <div class="table-card">
+          <div class="table-wrapper">
+            <table class="padrinos-table">
+              <thead>
+                <tr>
+                  <th>Padrino / Madrina</th>
+                  <th>Caballo</th>
+                  <th>Contacto</th>
+                  <th>Aporte</th>
+                  <!-- 12 columnas de meses -->
+                  <th class="th-month" data-month="1">Ene</th>
+                  <th class="th-month" data-month="2">Feb</th>
+                  <th class="th-month" data-month="3">Mar</th>
+                  <th class="th-month" data-month="4">Abr</th>
+                  <th class="th-month" data-month="5">May</th>
+                  <th class="th-month" data-month="6">Jun</th>
+                  <th class="th-month" data-month="7">Jul</th>
+                  <th class="th-month" data-month="8">Ago</th>
+                  <th class="th-month" data-month="9">Sep</th>
+                  <th class="th-month" data-month="10">Oct</th>
+                  <th class="th-month" data-month="11">Nov</th>
+                  <th class="th-month" data-month="12">Dic</th>
+                  <th class="center" style="width: 80px;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="sponsorsTableBody">
+                <!-- Renderizado dinámico vía JavaScript -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Estado vacío si no hay coincidencias -->
+          <div id="emptyState" class="empty-table-state" style="display: none;">
+            <div style="font-size: 2.5rem;">🐴</div>
+            <h3>No se encontraron padrinos</h3>
+            <p>Podés registrar el primero haciendo clic en <strong>"+ Nuevo Padrino"</strong>.</p>
+          </div>
         </div>
       </div>
 
-      <!-- Tarjetas de Métricas -->
-      <section class="metrics-row">
-        <article class="metric-card">
-          <div class="metric-label">Padrinos Activos</div>
-          <div class="metric-value" id="metricActiveSponsors">0</div>
-          <div class="metric-sub" id="metricTotalSponsors">Total registrados: 0</div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-label">Caballos con Padrino</div>
-          <div class="metric-value" id="metricSponsoredHorses">0</div>
-          <div class="metric-sub">de {horses.length} en la manada</div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-label">Reportes de <span id="currentMonthNameLabel">este mes</span></div>
-          <div class="metric-value" id="metricMonthReports">0 / 0</div>
-          <div class="metric-sub warning" id="metricMonthPending">0 pendientes de envío</div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-label">Aporte Mensual Estimado</div>
-          <div class="metric-value" id="metricMonthlyFunds">$0</div>
-          <div class="metric-sub">Sostén para el santuario</div>
-        </article>
-      </section>
+      <!-- ========================================== -->
+      <!-- VISTA 2: GESTIÓN DE CABALLOS (LA MANADA)   -->
+      <!-- ========================================== -->
+      <div id="viewHorses" style="display: none;">
+        <div class="admin-filterbar">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              id="searchHorsesInput"
+              class="search-input"
+              placeholder="Buscar caballo por nombre o historia..."
+            />
+          </div>
 
-      <!-- Barra de Filtros y Búsqueda -->
-      <div class="admin-filterbar">
-        <div class="search-input-wrapper">
-          <span class="search-icon">🔍</span>
-          <input
-            type="text"
-            id="searchInput"
-            class="search-input"
-            placeholder="Buscar por nombre, teléfono o email..."
-          />
+          <div class="filter-selects">
+            <select id="filterHorseStatus" class="filter-select">
+              <option value="all">Todos los estados</option>
+              <option value="disponible" selected>Disponibles para apadrinar</option>
+              <option value="pausado">Pausados</option>
+              <option value="oculto">Ocultos</option>
+            </select>
+
+            <button type="button" id="btnQuickAddHorse" class="btn-primary">
+              <span>+</span> Agregar Caballo
+            </button>
+          </div>
         </div>
 
-        <div class="filter-selects">
-          <select id="filterHorse" class="filter-select">
-            <option value="all">Todos los caballos</option>
-            {horses.map((horse) => (
-              <option value={horse.id}>{horse.name} ({horse.id})</option>
-            ))}
-          </select>
-
-          <select id="filterStatus" class="filter-select">
-            <option value="all">Todos los estados</option>
-            <option value="activo" selected>Solo Activos</option>
-            <option value="pausado">Pausados</option>
-            <option value="baja">De Baja</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Tabla / Planilla de Padrinos -->
-      <div class="table-card">
-        <div class="table-wrapper">
-          <table class="padrinos-table">
-            <thead>
-              <tr>
-                <th>Padrino / Madrina</th>
-                <th>Caballo</th>
-                <th>Contacto</th>
-                <th>Aporte</th>
-                <!-- 12 columnas de meses -->
-                <th class="th-month" data-month="1">Ene</th>
-                <th class="th-month" data-month="2">Feb</th>
-                <th class="th-month" data-month="3">Mar</th>
-                <th class="th-month" data-month="4">Abr</th>
-                <th class="th-month" data-month="5">May</th>
-                <th class="th-month" data-month="6">Jun</th>
-                <th class="th-month" data-month="7">Jul</th>
-                <th class="th-month" data-month="8">Ago</th>
-                <th class="th-month" data-month="9">Sep</th>
-                <th class="th-month" data-month="10">Oct</th>
-                <th class="th-month" data-month="11">Nov</th>
-                <th class="th-month" data-month="12">Dic</th>
-                <th class="center" style="width: 80px;">Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="sponsorsTableBody">
-              <!-- Renderizado dinámico vía JavaScript -->
-            </tbody>
-          </table>
+        <div class="horses-grid" id="horsesGridContainer">
+          <!-- Renderizado dinámico vía JavaScript -->
         </div>
 
-        <!-- Estado vacío si no hay coincidencias -->
-        <div id="emptyState" class="empty-table-state" style="display: none;">
+        <div id="horsesEmptyState" class="empty-table-state" style="display: none;">
           <div style="font-size: 2.5rem;">🐴</div>
-          <h3>No se encontraron padrinos</h3>
-          <p>Podés registrar el primero haciendo clic en <strong>"+ Nuevo Padrino"</strong>.</p>
+          <h3>No se encontraron caballos</h3>
+          <p>Podés sumar el primero haciendo clic en <strong>"+ Agregar Caballo"</strong>.</p>
         </div>
       </div>
     </div>
 
-    <!-- Modal Formulario (Alta / Edición) -->
+    <!-- Modal Formulario Padrino (Alta / Edición) -->
     <div id="sponsorModal" class="modal-overlay">
       <div class="modal-window">
         <div class="modal-header">
@@ -205,11 +256,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
               <label for="formCaballoId">Caballo que apadrina *</label>
               <select id="formCaballoId" class="form-select" required>
                 <option value="">Seleccionar caballo...</option>
-                {horses.map((horse) => (
-                  <option value={horse.id} data-name={horse.name}>
-                    {horse.name} ({horse.id})
-                  </option>
-                ))}
               </select>
             </div>
 
@@ -269,6 +315,76 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       </div>
     </div>
 
+    <!-- Modal Formulario Caballo (Alta / Edición) -->
+    <div id="horseModal" class="modal-overlay">
+      <div class="modal-window">
+        <div class="modal-header">
+          <h2 id="horseModalTitle">Nuevo Caballo</h2>
+          <button type="button" id="btnHorseModalClose" class="modal-close-btn">&times;</button>
+        </div>
+
+        <form id="horseForm">
+          <input type="hidden" id="formHorseId" value="" />
+
+          <div class="form-grid">
+            <div class="form-group full">
+              <label for="formHorseNombre">Nombre del Caballo *</label>
+              <input type="text" id="formHorseNombre" class="form-input" required placeholder="Ej: Rayo, Pampa, Luna..." />
+            </div>
+
+            <div class="form-group full">
+              <label for="formHorseFoto">Foto del Caballo (URL o selección rápida)</label>
+              <input
+                type="text"
+                id="formHorseFoto"
+                class="form-input"
+                placeholder="https://... o /placeholders/horse-01.svg"
+                value="/placeholders/horse-01.svg"
+              />
+              <div style="display: flex; gap: 0.4rem; margin-top: 0.5rem; flex-wrap: wrap;">
+                <button type="button" class="btn-secondary btn-placeholder-pic" data-pic="/placeholders/horse-01.svg" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Ficha 1</button>
+                <button type="button" class="btn-secondary btn-placeholder-pic" data-pic="/placeholders/horse-02.svg" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Ficha 2</button>
+                <button type="button" class="btn-secondary btn-placeholder-pic" data-pic="/placeholders/horse-03.svg" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Ficha 3</button>
+                <button type="button" class="btn-secondary btn-placeholder-pic" data-pic="/placeholders/hero-herd.svg" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Manada</button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="formHorseEstado">Estado para Apadrinar</label>
+              <select id="formHorseEstado" class="form-select">
+                <option value="disponible">Disponible</option>
+                <option value="pausado">Pausado</option>
+                <option value="oculto">Oculto</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="formHorseDestacado">¿Destacar en Inicio?</label>
+              <select id="formHorseDestacado" class="form-select">
+                <option value="false">No</option>
+                <option value="true">Sí (Destacado)</option>
+              </select>
+            </div>
+
+            <div class="form-group full">
+              <label for="formHorseDescripcion">Historia o Descripción Corta</label>
+              <textarea
+                id="formHorseDescripcion"
+                class="form-textarea"
+                rows="3"
+                placeholder="Contá brevemente su historia, rescate o personalidad en el santuario..."
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="btnHorseModalCancel" class="btn-secondary">Cancelar</button>
+            <button type="submit" id="btnHorseModalSave" class="btn-primary">Guardar Caballo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Notificación Toast -->
     <div id="toast" class="toast-notice">
       <span id="toastIcon">✓</span>
@@ -278,7 +394,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
     <!-- Script de lógica de la aplicación -->
     <script>
       import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-      import type { Sponsor, MonthlyReportRecord } from '@/lib/types';
+      import type { Sponsor, MonthlyReportRecord, HorseRecord } from '@/lib/types';
       import { MONTH_NAMES } from '@/lib/types';
 
       const bodyEl = document.body;
@@ -291,8 +407,10 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       // Estado de la aplicación
       let activeYear = config.currentYear;
       let sponsors: Sponsor[] = [];
+      let horsesList: HorseRecord[] = [];
       let reports: MonthlyReportRecord[] = [];
       let isLiveDb = isSupabaseConfigured;
+      let activeTab: 'sponsors' | 'horses' = 'sponsors';
 
       // Elementos del DOM
       const lockScreen = document.getElementById('lockScreen')!;
@@ -302,7 +420,17 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       const pinError = document.getElementById('pinError')!;
       const dbStatusPill = document.getElementById('dbStatusPill')!;
       const dbStatusText = document.getElementById('dbStatusText')!;
-      const setupBanner = document.getElementById('setupBanner')!;
+
+      // Pestañas
+      const tabBtnSponsors = document.getElementById('tabBtnSponsors')!;
+      const tabBtnHorses = document.getElementById('tabBtnHorses')!;
+      const viewSponsors = document.getElementById('viewSponsors')!;
+      const viewHorses = document.getElementById('viewHorses')!;
+      const tabBadgeSponsors = document.getElementById('tabBadgeSponsors')!;
+      const tabBadgeHorses = document.getElementById('tabBadgeHorses')!;
+      const yearSelectorGroup = document.getElementById('yearSelectorGroup')!;
+
+      // Padrinos DOM
       const sponsorsTableBody = document.getElementById('sponsorsTableBody')!;
       const emptyState = document.getElementById('emptyState')!;
       const searchInput = document.getElementById('searchInput') as HTMLInputElement;
@@ -312,13 +440,29 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       const toastEl = document.getElementById('toast')!;
       const toastMessage = document.getElementById('toastMessage')!;
 
-      // Modal
+      // Caballos DOM
+      const horsesGridContainer = document.getElementById('horsesGridContainer')!;
+      const horsesEmptyState = document.getElementById('horsesEmptyState')!;
+      const searchHorsesInput = document.getElementById('searchHorsesInput') as HTMLInputElement;
+      const filterHorseStatus = document.getElementById('filterHorseStatus') as HTMLSelectElement;
+
+      // Modales
       const sponsorModal = document.getElementById('sponsorModal')!;
       const sponsorForm = document.getElementById('sponsorForm') as HTMLFormElement;
       const modalTitle = document.getElementById('modalTitle')!;
       const btnModalClose = document.getElementById('btnModalClose')!;
       const btnModalCancel = document.getElementById('btnModalCancel')!;
       const btnOpenAddModal = document.getElementById('btnOpenAddModal')!;
+      const formCaballoId = document.getElementById('formCaballoId') as HTMLSelectElement;
+
+      const horseModal = document.getElementById('horseModal')!;
+      const horseForm = document.getElementById('horseForm') as HTMLFormElement;
+      const horseModalTitle = document.getElementById('horseModalTitle')!;
+      const btnHorseModalClose = document.getElementById('btnHorseModalClose')!;
+      const btnHorseModalCancel = document.getElementById('btnHorseModalCancel')!;
+      const btnOpenAddHorseModal = document.getElementById('btnOpenAddHorseModal')!;
+      const btnQuickAddHorse = document.getElementById('btnQuickAddHorse')!;
+
       const btnLogout = document.getElementById('btnLogout')!;
       const btnExportCsv = document.getElementById('btnExportCsv')!;
 
@@ -359,24 +503,44 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         window.location.reload();
       });
 
+      // Cambio de pestañas
+      function switchTab(tab: 'sponsors' | 'horses') {
+        activeTab = tab;
+        if (tab === 'sponsors') {
+          tabBtnSponsors.classList.add('active');
+          tabBtnHorses.classList.remove('active');
+          viewSponsors.style.display = 'block';
+          viewHorses.style.display = 'none';
+          yearSelectorGroup.style.display = 'flex';
+          btnExportCsv.style.display = 'inline-flex';
+        } else {
+          tabBtnSponsors.classList.remove('active');
+          tabBtnHorses.classList.add('active');
+          viewSponsors.style.display = 'none';
+          viewHorses.style.display = 'block';
+          yearSelectorGroup.style.display = 'none';
+          btnExportCsv.style.display = 'none';
+          renderHorsesGrid();
+        }
+      }
+
       // Inicialización de la Aplicación
       async function initApp() {
         updateDbStatus();
         highlightCurrentMonthHeaders();
         setupYearSelector();
         setupEventListeners();
-        await loadData();
+        await loadHorsesData();
+        await loadSponsorsData();
       }
 
       function updateDbStatus() {
         if (isLiveDb) {
+          dbStatusPill.style.display = 'inline-flex';
           dbStatusPill.className = 'status-pill live';
-          dbStatusText.textContent = 'Supabase Conectado';
-          setupBanner.style.display = 'none';
+          dbStatusText.textContent = 'En línea';
         } else {
-          dbStatusPill.className = 'status-pill demo';
-          dbStatusText.textContent = 'Modo Local (Demo)';
-          setupBanner.style.display = 'flex';
+          dbStatusPill.style.display = 'none';
         }
       }
 
@@ -406,8 +570,295 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         });
       }
 
-      // Carga de Datos (Supabase con fallback a LocalStorage)
-      async function loadData() {
+      // ==========================================
+      // GESTIÓN DE CABALLOS (CARGA Y CRUD)
+      // ==========================================
+      async function loadHorsesData() {
+        if (isLiveDb && supabase) {
+          try {
+            const { data, error } = await supabase
+              .from('caballos')
+              .select('*')
+              .order('created_at', { ascending: true });
+
+            if (error) {
+              console.warn('Tabla caballos no creada aún o vacía en Supabase:', error.message);
+              loadLocalHorses();
+            } else if (data && data.length > 0) {
+              horsesList = data;
+            } else {
+              // Si la tabla está vacía, cargamos los iniciales
+              loadLocalHorses();
+            }
+          } catch (err) {
+            console.warn('Error cargando caballos de Supabase:', err);
+            loadLocalHorses();
+          }
+        } else {
+          loadLocalHorses();
+        }
+
+        updateHorseSelectDropdowns();
+        renderHorsesGrid();
+        updateBadges();
+      }
+
+      function loadLocalHorses() {
+        const local = localStorage.getItem('almas_horses');
+        horsesList = local ? JSON.parse(local) : [];
+      }
+
+      function saveLocalHorses() {
+        localStorage.setItem('almas_horses', JSON.stringify(horsesList));
+      }
+
+      function updateHorseSelectDropdowns() {
+        // Dropdown en el filtro de la tabla
+        const currentSelectedFilter = filterHorse.value;
+        filterHorse.innerHTML = '<option value="all">Todos los caballos</option>';
+        horsesList.forEach((h) => {
+          const opt = document.createElement('option');
+          opt.value = h.id;
+          opt.textContent = `${h.nombre}`;
+          filterHorse.appendChild(opt);
+        });
+        filterHorse.value = currentSelectedFilter || 'all';
+
+        // Dropdown en el modal de Padrino
+        const currentSelectedForm = formCaballoId.value;
+        formCaballoId.innerHTML = '<option value="">Seleccionar caballo...</option>';
+        horsesList.forEach((h) => {
+          const opt = document.createElement('option');
+          opt.value = h.id;
+          opt.setAttribute('data-name', h.nombre);
+          opt.textContent = `${h.nombre}`;
+          formCaballoId.appendChild(opt);
+        });
+        formCaballoId.value = currentSelectedForm || '';
+      }
+
+      function renderHorsesGrid() {
+        const query = (searchHorsesInput.value || '').toLowerCase().trim();
+        const status = filterHorseStatus.value;
+
+        const filtered = horsesList.filter((h) => {
+          const matchesQuery =
+            h.nombre.toLowerCase().includes(query) ||
+            (h.descripcion && h.descripcion.toLowerCase().includes(query));
+          const matchesStatus = status === 'all' || h.estado === status;
+          return matchesQuery && matchesStatus;
+        });
+
+        if (filtered.length === 0) {
+          horsesGridContainer.innerHTML = '';
+          horsesEmptyState.style.display = 'block';
+          return;
+        }
+
+        horsesEmptyState.style.display = 'none';
+
+        horsesGridContainer.innerHTML = filtered
+          .map((horse) => {
+            const activeSponsorsCount = sponsors.filter(
+              (s) => s.caballo_id === horse.id && s.estado === 'activo'
+            ).length;
+
+            const photoSrc = horse.foto || '/placeholders/horse-01.svg';
+
+            return `
+              <article class="horse-admin-card" data-id="${horse.id}">
+                <div class="horse-card-media">
+                  <img
+                    src="${photoSrc}"
+                    alt="${escapeHtml(horse.nombre)}"
+                    class="horse-card-img"
+                    onerror="this.src='/placeholders/horse-01.svg'"
+                  />
+                  <div class="horse-card-status">
+                    <span class="status-tag ${horse.estado}">${horse.estado}</span>
+                  </div>
+                </div>
+                <div class="horse-card-body">
+                  <h3 class="horse-card-title">${escapeHtml(horse.nombre)}</h3>
+                  <p class="horse-card-desc">${escapeHtml(horse.descripcion || 'Sin descripción cargada.')}</p>
+                  
+                  <div class="horse-card-meta">
+                    <span class="sponsor-count-pill ${activeSponsorsCount === 0 ? 'empty' : ''}">
+                      <span>👥</span> ${activeSponsorsCount} ${activeSponsorsCount === 1 ? 'padrino' : 'padrinos'}
+                    </span>
+
+                    <div class="row-actions">
+                      <button
+                        type="button"
+                        class="btn-icon btn-view-horse-sponsors"
+                        data-id="${horse.id}"
+                        title="Ver padrinos de este caballo"
+                      >📋</button>
+                      <button
+                        type="button"
+                        class="btn-icon btn-edit-horse"
+                        data-id="${horse.id}"
+                        title="Editar caballo"
+                      >✏️</button>
+                      <button
+                        type="button"
+                        class="btn-icon delete btn-delete-horse"
+                        data-id="${horse.id}"
+                        title="Eliminar caballo"
+                      >🗑️</button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            `;
+          })
+          .join('');
+
+        // Listeners para acciones de caballos
+        document.querySelectorAll('.btn-edit-horse').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const id = (e.currentTarget as HTMLElement).getAttribute('data-id')!;
+            openEditHorseModal(id);
+          });
+        });
+
+        document.querySelectorAll('.btn-delete-horse').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const id = (e.currentTarget as HTMLElement).getAttribute('data-id')!;
+            deleteHorse(id);
+          });
+        });
+
+        document.querySelectorAll('.btn-view-horse-sponsors').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const id = (e.currentTarget as HTMLElement).getAttribute('data-id')!;
+            filterHorse.value = id;
+            switchTab('sponsors');
+            renderTable();
+          });
+        });
+      }
+
+      function openAddHorseModal() {
+        (document.getElementById('formHorseId') as HTMLInputElement).value = '';
+        horseForm.reset();
+        (document.getElementById('formHorseFoto') as HTMLInputElement).value = '/placeholders/horse-01.svg';
+        (document.getElementById('formHorseEstado') as HTMLSelectElement).value = 'disponible';
+        (document.getElementById('formHorseDestacado') as HTMLSelectElement).value = 'false';
+        horseModalTitle.textContent = 'Nuevo Caballo';
+        horseModal.classList.add('open');
+      }
+
+      function openEditHorseModal(id: string) {
+        const horse = horsesList.find((h) => h.id === id);
+        if (!horse) return;
+
+        (document.getElementById('formHorseId') as HTMLInputElement).value = horse.id;
+        (document.getElementById('formHorseNombre') as HTMLInputElement).value = horse.nombre;
+        (document.getElementById('formHorseFoto') as HTMLInputElement).value = horse.foto || '/placeholders/horse-01.svg';
+        (document.getElementById('formHorseEstado') as HTMLSelectElement).value = horse.estado || 'disponible';
+        (document.getElementById('formHorseDestacado') as HTMLSelectElement).value = horse.destacado ? 'true' : 'false';
+        (document.getElementById('formHorseDescripcion') as HTMLTextAreaElement).value = horse.descripcion || '';
+
+        horseModalTitle.textContent = 'Editar Caballo';
+        horseModal.classList.add('open');
+      }
+
+      function closeHorseModal() {
+        horseModal.classList.remove('open');
+      }
+
+      horseForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const id = (document.getElementById('formHorseId') as HTMLInputElement).value;
+        const nombre = (document.getElementById('formHorseNombre') as HTMLInputElement).value.trim();
+        const foto = (document.getElementById('formHorseFoto') as HTMLInputElement).value.trim() || '/placeholders/horse-01.svg';
+        const estado = (document.getElementById('formHorseEstado') as HTMLSelectElement).value as any;
+        const destacado = (document.getElementById('formHorseDestacado') as HTMLSelectElement).value === 'true';
+        const descripcion = (document.getElementById('formHorseDescripcion') as HTMLTextAreaElement).value.trim() || undefined;
+
+        const payload: Partial<HorseRecord> = {
+          nombre,
+          foto,
+          estado,
+          destacado,
+          descripcion,
+        };
+
+        if (id) {
+          // Edición
+          if (isLiveDb && supabase) {
+            const { error } = await supabase.from('caballos').update(payload).eq('id', id);
+            if (error) {
+              console.error(error);
+              showToast('Error al actualizar en Supabase', true);
+              return;
+            }
+          }
+          const idx = horsesList.findIndex((h) => h.id === id);
+          if (idx !== -1) horsesList[idx] = { ...horsesList[idx], ...payload };
+          showToast('Caballo actualizado con éxito');
+        } else {
+          // Alta
+          const newId = isLiveDb ? undefined : `local-horse-${Date.now()}`;
+          if (isLiveDb && supabase) {
+            const { data, error } = await supabase.from('caballos').insert([payload]).select().single();
+            if (error) {
+              console.error(error);
+              showToast('Error al guardar caballo en Supabase', true);
+              return;
+            }
+            if (data) horsesList.unshift(data);
+          } else {
+            const newHorse = { ...payload, id: newId!, created_at: new Date().toISOString() } as HorseRecord;
+            horsesList.unshift(newHorse);
+          }
+          showToast('Nuevo caballo registrado en la manada');
+        }
+
+        if (!isLiveDb) saveLocalHorses();
+
+        closeHorseModal();
+        updateHorseSelectDropdowns();
+        renderHorsesGrid();
+        updateBadges();
+      });
+
+      async function deleteHorse(id: string) {
+        const horse = horsesList.find((h) => h.id === id);
+        if (!horse) return;
+
+        const assignedSponsors = sponsors.filter((s) => s.caballo_id === id);
+        if (assignedSponsors.length > 0) {
+          alert(`No se puede eliminar a ${horse.nombre} porque tiene ${assignedSponsors.length} padrino(s) asignado(s). Primero cambiales de caballo o ponelo en estado "Pausado".`);
+          return;
+        }
+
+        if (!confirm(`¿Eliminar a ${horse.nombre} de la manada?`)) return;
+
+        if (isLiveDb && supabase) {
+          const { error } = await supabase.from('caballos').delete().eq('id', id);
+          if (error) {
+            console.error(error);
+            showToast('Error al eliminar en Supabase', true);
+            return;
+          }
+        }
+
+        horsesList = horsesList.filter((h) => h.id !== id);
+        if (!isLiveDb) saveLocalHorses();
+
+        updateHorseSelectDropdowns();
+        renderHorsesGrid();
+        updateBadges();
+        showToast('Caballo eliminado');
+      }
+
+      // ==========================================
+      // GESTIÓN DE PADRINOS (CARGA Y CRUD)
+      // ==========================================
+      async function loadSponsorsData() {
         if (isLiveDb && supabase) {
           try {
             const { data: sponsorsData, error: sponsorsError } = await supabase
@@ -431,6 +882,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
         renderTable();
         updateMetrics();
+        updateBadges();
       }
 
       async function loadReportsForYear(year: number) {
@@ -457,41 +909,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
       function loadLocalStorageData() {
         const localSponsors = localStorage.getItem('almas_sponsors');
-        if (localSponsors) {
-          sponsors = JSON.parse(localSponsors);
-        } else {
-          // Datos iniciales demostrativos para que puedan probar de inmediato
-          sponsors = [
-            {
-              id: 'demo-1',
-              nombre: 'Camila Rodriguez',
-              caballo_id: 'horse-01',
-              caballo_nombre: 'Ficha #1 (horse-01)',
-              fecha_inicio: '2026-03-01',
-              telefono: '+54 9 11 4444-5555',
-              email: 'camila@ejemplo.com',
-              monto: 15000,
-              moneda: 'ARS',
-              estado: 'activo',
-              notas: 'Amiga de Magalí. Enviar fotos comiendo manzanas.',
-            },
-            {
-              id: 'demo-2',
-              nombre: 'Martín Benítez',
-              caballo_id: 'horse-02',
-              caballo_nombre: 'Ficha #2 (horse-02)',
-              fecha_inicio: '2026-05-15',
-              telefono: '+54 9 11 6666-7777',
-              email: 'martin@ejemplo.com',
-              monto: 20000,
-              moneda: 'ARS',
-              estado: 'activo',
-              notas: 'Prefiere novedades por WhatsApp.',
-            },
-          ];
-          saveLocalStorage();
-        }
-
+        sponsors = localSponsors ? JSON.parse(localSponsors) : [];
         const localReports = localStorage.getItem(`almas_reports_${activeYear}`);
         reports = localReports ? JSON.parse(localReports) : [];
       }
@@ -501,7 +919,13 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         localStorage.setItem(`almas_reports_${activeYear}`, JSON.stringify(reports));
       }
 
-      // Render de la Tabla
+      function updateBadges() {
+        tabBadgeSponsors.textContent = String(sponsors.filter((s) => s.estado === 'activo').length);
+        tabBadgeHorses.textContent = String(horsesList.length);
+        document.getElementById('metricTotalHorsesCount')!.textContent = `de ${horsesList.length} en la manada`;
+      }
+
+      // Render de la Tabla de Padrinos
       function renderTable() {
         const query = searchInput.value.toLowerCase().trim();
         const selectedHorse = filterHorse.value;
@@ -529,7 +953,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
         sponsorsTableBody.innerHTML = filtered
           .map((sp) => {
-            // Generar 12 celdas de meses
             const monthCells = Array.from({ length: 12 }, (_, i) => {
               const month = i + 1;
               const isSent = reports.some(
@@ -552,7 +975,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
               `;
             }).join('');
 
-            // Link WhatsApp con mensaje prearmado
             const cleanPhone = (sp.telefono || '').replace(/\D/g, '');
             const waText = encodeURIComponent(
               `¡Hola ${sp.nombre}! 🐴 Te escribimos desde Fundación Almas Libres con las novedades de este mes de ${sp.caballo_nombre}. ¡Gracias por ser parte de su cuidado!`
@@ -598,12 +1020,10 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           })
           .join('');
 
-        // Listeners para los botones de toggle de reportes
         document.querySelectorAll('.report-toggle-btn').forEach((btn) => {
           btn.addEventListener('click', handleReportToggle);
         });
 
-        // Listeners para editar y borrar
         document.querySelectorAll('.btn-edit').forEach((btn) => {
           btn.addEventListener('click', (e) => {
             const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
@@ -627,7 +1047,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         const isCurrentlySent = btn.classList.contains('sent');
         const nextState = !isCurrentlySent;
 
-        // UI Optimista inmediata
         btn.classList.toggle('sent', nextState);
         btn.innerHTML = nextState ? '✓' : '•';
 
@@ -654,14 +1073,12 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           } catch (err) {
             console.error('Error actualizando reporte en Supabase:', err);
             showToast('Error de sincronización con la base', true);
-            // Revertir UI
             btn.classList.toggle('sent', isCurrentlySent);
             btn.innerHTML = isCurrentlySent ? '✓' : '•';
             return;
           }
         }
 
-        // Actualizar array en memoria
         if (nextState) {
           reports.push({ padrino_id: padrinoId, anio: activeYear, mes: month, enviado: true });
         } else {
@@ -670,9 +1087,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           );
         }
 
-        if (!isLiveDb) {
-          saveLocalStorage();
-        }
+        if (!isLiveDb) saveLocalStorage();
 
         updateMetrics();
         showToast(nextState ? `Reporte de ${MONTH_NAMES[month - 1]} marcado como enviado` : `Reporte desmarcado`);
@@ -684,11 +1099,9 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         document.getElementById('metricActiveSponsors')!.textContent = String(activeSponsors.length);
         document.getElementById('metricTotalSponsors')!.textContent = `Total registrados: ${sponsors.length}`;
 
-        // Caballos únicos con padrino
         const uniqueHorses = new Set(activeSponsors.map((s) => s.caballo_id));
         document.getElementById('metricSponsoredHorses')!.textContent = String(uniqueHorses.size);
 
-        // Reportes de este mes
         const curM = config.currentMonth;
         let sentThisMonth = 0;
         activeSponsors.forEach((sp) => {
@@ -704,12 +1117,11 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         pendingEl.textContent = `${pendingThisMonth} pendientes de envío`;
         pendingEl.className = pendingThisMonth > 0 ? 'metric-sub warning' : 'metric-sub';
 
-        // Total fondos mensuales estimados
         const totalFunds = activeSponsors.reduce((acc, s) => acc + (Number(s.monto) || 0), 0);
         document.getElementById('metricMonthlyFunds')!.textContent = `$${totalFunds.toLocaleString('es-AR')}`;
       }
 
-      // Modal Alta / Edición
+      // Modal Alta / Edición Padrino
       function openAddModal() {
         (document.getElementById('formSponsorId') as HTMLInputElement).value = '';
         sponsorForm.reset();
@@ -763,7 +1175,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         };
 
         if (id) {
-          // Edición
           if (isLiveDb && supabase) {
             const { error } = await supabase.from('padrinos').update(payload).eq('id', id);
             if (error) {
@@ -776,7 +1187,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           if (idx !== -1) sponsors[idx] = { ...sponsors[idx], ...payload };
           showToast('Padrino actualizado con éxito');
         } else {
-          // Alta
           const newId = isLiveDb ? undefined : `local-${Date.now()}`;
           if (isLiveDb && supabase) {
             const { data, error } = await supabase.from('padrinos').insert([payload]).select().single();
@@ -798,6 +1208,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         closeModal();
         renderTable();
         updateMetrics();
+        updateBadges();
       });
 
       async function deleteSponsor(id: string) {
@@ -820,6 +1231,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
         renderTable();
         updateMetrics();
+        updateBadges();
         showToast('Padrino eliminado');
       }
 
@@ -882,6 +1294,11 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
       // Configurar Listeners generales
       function setupEventListeners() {
+        // Pestañas
+        tabBtnSponsors.addEventListener('click', () => switchTab('sponsors'));
+        tabBtnHorses.addEventListener('click', () => switchTab('horses'));
+
+        // Padrinos Modales
         btnOpenAddModal.addEventListener('click', openAddModal);
         btnModalClose.addEventListener('click', closeModal);
         btnModalCancel.addEventListener('click', closeModal);
@@ -889,9 +1306,31 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           if (e.target === sponsorModal) closeModal();
         });
 
+        // Caballos Modales
+        btnOpenAddHorseModal.addEventListener('click', openAddHorseModal);
+        btnQuickAddHorse.addEventListener('click', openAddHorseModal);
+        btnHorseModalClose.addEventListener('click', closeHorseModal);
+        btnHorseModalCancel.addEventListener('click', closeHorseModal);
+        horseModal.addEventListener('click', (e) => {
+          if (e.target === horseModal) closeHorseModal();
+        });
+
+        // Botones rápidos de placeholders de fotos
+        document.querySelectorAll('.btn-placeholder-pic').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const pic = (e.currentTarget as HTMLElement).getAttribute('data-pic');
+            (document.getElementById('formHorseFoto') as HTMLInputElement).value = pic || '';
+          });
+        });
+
+        // Búsquedas y filtros
         searchInput.addEventListener('input', renderTable);
         filterHorse.addEventListener('change', renderTable);
         filterStatus.addEventListener('change', renderTable);
+
+        searchHorsesInput.addEventListener('input', renderHorsesGrid);
+        filterHorseStatus.addEventListener('change', renderHorsesGrid);
+
         btnExportCsv.addEventListener('click', exportToCsv);
       }
 
@@ -911,7 +1350,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           .replace(/'/g, '&#039;');
       }
 
-      // Arrancar
+      // Iniciar
       initAuth();
     </script>
   </body>

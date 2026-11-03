@@ -740,3 +740,160 @@
   transform: translateY(0);
   opacity: 1;
 }
+
+/* =========================================================
+   Navegación por Pestañas (Padrinos vs Manada)
+   ========================================================= */
+.admin-nav-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 0.25rem;
+}
+
+.admin-tab-btn {
+  background: none;
+  border: none;
+  padding: 0.65rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 12px 12px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.admin-tab-btn:hover {
+  color: var(--green);
+  background: rgba(36, 65, 55, 0.04);
+}
+
+.admin-tab-btn.active {
+  color: var(--green);
+  background: var(--warm-white);
+}
+
+.admin-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--terracotta);
+  border-radius: 3px 3px 0 0;
+}
+
+.tab-badge {
+  background: #f0ebe1;
+  color: var(--green);
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+/* =========================================================
+   Sección de Gestión de Caballos
+   ========================================================= */
+.horses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.horse-admin-card {
+  background: var(--warm-white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.horse-admin-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+}
+
+.horse-card-media {
+  height: 160px;
+  background: #eae4d5;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.horse-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.horse-card-placeholder {
+  font-size: 3.5rem;
+  opacity: 0.7;
+}
+
+.horse-card-status {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+}
+
+.horse-card-body {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.horse-card-title {
+  font-family: 'Lora', serif;
+  font-size: 1.25rem;
+  color: var(--green);
+  margin: 0 0 0.35rem;
+}
+
+.horse-card-desc {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.45;
+  flex: 1;
+  margin-bottom: 1rem;
+}
+
+.horse-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+  margin-top: auto;
+}
+
+.sponsor-count-pill {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--green);
+  background: #eafbf0;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sponsor-count-pill.empty {
+  background: #fff3bf;
+  color: #d9480f;
+}

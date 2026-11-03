@@ -1,4 +1,5 @@
 export type SponsorStatus = 'activo' | 'pausado' | 'baja';
+export type HorseStatus = 'disponible' | 'pausado' | 'oculto';
 
 export interface Sponsor {
   id: string;
@@ -12,6 +13,17 @@ export interface Sponsor {
   moneda?: string;
   estado: SponsorStatus;
   notas?: string;
+  created_at?: string;
+}
+
+export interface HorseRecord {
+  id: string;
+  slug?: string;
+  nombre: string;
+  foto?: string;
+  descripcion?: string;
+  estado: HorseStatus;
+  destacado?: boolean;
   created_at?: string;
 }
 

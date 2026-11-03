@@ -1,9 +1,20 @@
 -- ========================================================
--- Fundación Almas Libres - Esquema de Base de Datos Supabase
--- Gestión de Padrinazgo Equino y Reportes Mensuales
+-- Fundación Almas Libres - Esquema Completo Supabase (Idempotente)
 -- ========================================================
 
--- 1. Tabla de Padrinos
+-- 1. Tabla de Caballos (La Manada)
+create table if not exists public.caballos (
+  id uuid primary key default gen_random_uuid(),
+  slug text,
+  nombre text not null,
+  foto text default '/placeholders/horse-01.svg',
+  descripcion text,
+  estado text not null default 'disponible' check (estado in ('disponible', 'pausado', 'oculto')),
+  destacado boolean default false,
+  created_at timestamptz not null default now()
+);
+
+-- 2. Tabla de Padrinos
 create table if not exists public.padrinos (
   id uuid primary key default gen_random_uuid(),
   nombre text not null,
@@ -19,8 +30,7 @@ create table if not exists public.padrinos (
   created_at timestamptz not null default now()
 );
 
--- 2. Tabla de Reportes Mensuales Enviados
--- Registra para cada padrino, año y mes si el reporte fue tildado/enviado
+-- 3. Tabla de Reportes Mensuales Enviados (Ene - Dic)
 create table if not exists public.reportes_mensuales (
   id uuid primary key default gen_random_uuid(),
   padrino_id uuid not null references public.padrinos(id) on delete cascade,
@@ -31,24 +41,26 @@ create table if not exists public.reportes_mensuales (
   constraint padrino_anio_mes_unique unique (padrino_id, anio, mes)
 );
 
--- Índices para búsqueda rápida
+-- 4. Índices para búsqueda rápida
+create index if not exists idx_caballos_estado on public.caballos(estado);
 create index if not exists idx_padrinos_caballo on public.padrinos(caballo_id);
 create index if not exists idx_padrinos_estado on public.padrinos(estado);
 create index if not exists idx_reportes_padrino_anio on public.reportes_mensuales(padrino_id, anio);
 
--- 3. Habilitar Row Level Security (RLS)
+-- 5. Habilitar Seguridad (RLS)
+alter table public.caballos enable row level security;
 alter table public.padrinos enable row level security;
 alter table public.reportes_mensuales enable row level security;
 
--- Políticas de acceso para clave pública anónima (para uso interno de la app)
-create policy "Acceso total a padrinos para clave anon"
-  on public.padrinos
-  for all
-  using (true)
-  with check (true);
+-- 6. Políticas de Acceso (se borran primero si ya existían para evitar error 42710)
+drop policy if exists "Acceso total a caballos para clave anon" on public.caballos;
+create policy "Acceso total a caballos para clave anon"
+  on public.caballos for all using (true) with check (true);
 
+drop policy if exists "Acceso total a padrinos para clave anon" on public.padrinos;
+create policy "Acceso total a padrinos para clave anon"
+  on public.padrinos for all using (true) with check (true);
+
+drop policy if exists "Acceso total a reportes para clave anon" on public.reportes_mensuales;
 create policy "Acceso total a reportes para clave anon"
-  on public.reportes_mensuales
-  for all
-  using (true)
-  with check (true);
+  on public.reportes_mensuales for all using (true) with check (true);

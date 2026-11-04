@@ -2,12 +2,29 @@
 import '@/styles/global.css';
 import '@/styles/admin.css';
 
+const procEnv = (globalThis as any).process?.env || {};
 const adminPin =
   import.meta.env.PUBLIC_ADMIN_PIN ||
   (import.meta.env as any).ADMIN_PIN ||
+  procEnv.PUBLIC_ADMIN_PIN ||
+  procEnv.ADMIN_PIN ||
   '';
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1; // 1-12
+
+const supabaseUrl =
+  import.meta.env.PUBLIC_SUPABASE_URL ||
+  (import.meta.env as any).SUPABASE_URL ||
+  procEnv.PUBLIC_SUPABASE_URL ||
+  procEnv.SUPABASE_URL ||
+  '';
+
+const supabaseAnonKey =
+  import.meta.env.PUBLIC_SUPABASE_ANON_KEY ||
+  (import.meta.env as any).SUPABASE_ANON_KEY ||
+  procEnv.PUBLIC_SUPABASE_ANON_KEY ||
+  procEnv.SUPABASE_ANON_KEY ||
+  '';
 ---
 
 <!doctype html>
@@ -24,6 +41,8 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
     data-admin-pin={adminPin}
     data-current-year={currentYear}
     data-current-month={currentMonth}
+    data-supabase-url={supabaseUrl}
+    data-supabase-key={supabaseAnonKey}
   >
     <!-- Pantalla de Bloqueo / PIN -->
     <div id="lockScreen" class="lock-screen-wrapper" style="display: none;">
@@ -74,6 +93,9 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
           <button type="button" id="btnExportCsv" class="btn-secondary" title="Descargar como Excel/CSV">
             <span>📥</span> Exportar CSV
+          </button>
+          <button type="button" id="btnOpenBackupModal" class="btn-secondary" title="Diagnóstico y copia de seguridad de datos">
+            <span>💾</span> Respaldo
           </button>
           <button type="button" id="btnOpenAddHorseModal" class="btn-secondary" title="Agregar un caballo">
             <span>🐴</span> + Nuevo Caballo
@@ -478,6 +500,60 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       </div>
     </div>
 
+    <!-- Modal Diagnóstico y Respaldo de Datos -->
+    <div id="backupModal" class="modal-overlay">
+      <div class="modal-window" style="max-width: 620px;">
+        <div class="modal-header">
+          <h2><span>💾</span> Estado de Datos y Copia de Seguridad</h2>
+          <button type="button" id="btnBackupModalClose" class="btn-icon" title="Cerrar">✕</button>
+        </div>
+
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 1.25rem;">
+          <div style="background: var(--bg-alt); padding: 1rem; border-radius: 8px; font-size: 0.9rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; align-items: center;">
+              <strong>Conexión Activa:</strong>
+              <span id="diagDbStatus" class="status-pill live">Verificando...</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem; color: var(--muted); font-size: 0.82rem;">
+              <span>Servidor Supabase:</span>
+              <span id="diagDbUrl" style="word-break: break-all;">-</span>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <div style="border: 1px solid var(--border); padding: 0.85rem; border-radius: 8px;">
+              <div style="font-weight: 600; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem;">🐴 CABALLOS</div>
+              <div style="font-size: 1.25rem; font-weight: bold;" id="diagHorsesTotal">0 total</div>
+              <div style="font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem;">
+                <span id="diagHorsesRemote">0 en Supabase</span> • <span id="diagHorsesLocal">0 en navegador</span>
+              </div>
+            </div>
+
+            <div style="border: 1px solid var(--border); padding: 0.85rem; border-radius: 8px;">
+              <div style="font-weight: 600; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem;">👥 PADRINOS</div>
+              <div style="font-size: 1.25rem; font-weight: bold;" id="diagSponsorsTotal">0 total</div>
+              <div style="font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem;">
+                <span id="diagSponsorsRemote">0 en Supabase</span> • <span id="diagSponsorsLocal">0 en navegador</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+            <button type="button" id="btnExportFullJson" class="btn-primary" style="justify-content: center;">
+              <span>📥</span> Descargar Copia de Respaldo Completa (JSON)
+            </button>
+            <label class="btn-secondary" style="justify-content: center; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+              <span>📤</span> Restaurar desde Archivo JSON
+              <input type="file" id="inputRestoreJson" accept=".json" style="display: none;" />
+            </label>
+            <button type="button" id="btnForceResync" class="btn-secondary" style="justify-content: center;">
+              <span>🔄</span> Forzar Resincronización Completa
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Notificación Toast -->
     <div id="toast" class="toast-notice">
       <span id="toastIcon">✓</span>
@@ -486,7 +562,8 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
     <!-- Script de lógica de la aplicación -->
     <script>
-      import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+      import { createClient } from '@supabase/supabase-js';
+      import { supabase as defaultSupabase, isSupabaseConfigured as defaultIsConfigured } from '@/lib/supabase';
       import type { Sponsor, MonthlyReportRecord, HorseRecord, ManadaRecord } from '@/lib/types';
       import { MONTH_NAMES } from '@/lib/types';
 
@@ -497,13 +574,28 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         currentMonth: Number(bodyEl.dataset.currentMonth) || new Date().getMonth() + 1,
       };
 
+      // Si las credenciales vinieron desde el servidor en data-attributes, las usamos
+      const serverUrl = (bodyEl.dataset.supabaseUrl || '').trim();
+      const serverKey = (bodyEl.dataset.supabaseKey || '').trim();
+      const hasServerConfig = Boolean(serverUrl && serverKey && serverUrl.startsWith('https://') && !serverUrl.includes('tu-proyecto'));
+
+      const supabase = hasServerConfig
+        ? createClient(serverUrl, serverKey)
+        : defaultSupabase;
+
+      const isSupabaseConfigured = hasServerConfig || defaultIsConfigured;
+      let isLiveDb = isSupabaseConfigured;
+      const activeSupabaseUrl = serverUrl || (defaultSupabase ? (defaultSupabase as any).supabaseUrl : '');
+
       // Estado de la aplicación
       let activeYear = config.currentYear;
       let sponsors: Sponsor[] = [];
       let horsesList: HorseRecord[] = [];
       let manadasList: ManadaRecord[] = [];
       let reports: MonthlyReportRecord[] = [];
-      let isLiveDb = isSupabaseConfigured;
+
+      // Modal de respaldo y diagnóstico
+      const backupModal = document.getElementById('backupModal')!;
 
       // Estado del selector de caballos en el modal de Padrino
       let selectedHorseIds: Set<string> = new Set();
@@ -1116,6 +1208,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         let loadedHorses: HorseRecord[] = [];
         const local = localStorage.getItem('almas_horses');
         const localHorses: HorseRecord[] = local ? JSON.parse(local) : [];
+        let supabaseHorses: HorseRecord[] = [];
 
         if (isLiveDb && supabase) {
           try {
@@ -1124,65 +1217,73 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
               .select('*')
               .order('created_at', { ascending: true });
 
-            if (error) {
-              console.warn('Tabla caballos no creada aún o con error en Supabase:', error.message);
-              loadedHorses = localHorses.length > 0 ? localHorses : getFallbackHorses();
-            } else if (data && data.length > 0) {
-              loadedHorses = data;
-              // Si en local había caballos con fotos editadas o datos que en Supabase tienen placeholder, preservamos los cambios del usuario
-              if (localHorses.length > 0) {
-                loadedHorses = loadedHorses.map((h) => {
-                  const match = localHorses.find(
-                    (lh) => lh.id === h.id || (lh.nombre && h.nombre && lh.nombre.toLowerCase().trim() === h.nombre.toLowerCase().trim())
-                  );
-                  if (match) {
-                    const hasBetterPhoto = match.foto && !match.foto.includes('placeholders') && (!h.foto || h.foto.includes('placeholders'));
-                    return {
-                      ...h,
-                      foto: hasBetterPhoto ? match.foto : h.foto,
-                      descripcion: h.descripcion || match.descripcion,
-                      manada_id: h.manada_id || match.manada_id,
-                      manada_nombre: h.manada_nombre || match.manada_nombre,
-                    };
-                  }
-                  return h;
-                });
-              }
-            } else {
-              // Supabase está vacío: sembrar con datos locales si existen o con INITIAL_HORSES
-              const toInsert = localHorses.length > 0
-                ? localHorses.map(({ id, created_at, ...rest }) => rest)
-                : INITIAL_HORSES;
-
-              try {
-                const { data: seeded, error: seedError } = await supabase
-                  .from('caballos')
-                  .insert(toInsert as any)
-                  .select();
-                if (!seedError && seeded && seeded.length > 0) {
-                  loadedHorses = seeded;
-                } else {
-                  loadedHorses = localHorses.length > 0 ? localHorses : getFallbackHorses();
-                }
-              } catch {
-                loadedHorses = localHorses.length > 0 ? localHorses : getFallbackHorses();
-              }
+            if (!error && data && data.length > 0) {
+              supabaseHorses = data;
+            } else if (error) {
+              console.warn('[AlmasLibres] Error consultando caballos en Supabase:', error.message);
             }
           } catch (err) {
-            console.warn('Error cargando caballos de Supabase:', err);
-            loadedHorses = localHorses.length > 0 ? localHorses : getFallbackHorses();
+            console.warn('[AlmasLibres] Error conectando a Supabase para caballos:', err);
           }
+        }
+
+        // UNIFICACIÓN SIN PÉRDIDA: Supabase + LocalStorage
+        // Usamos un Map para que NINGÚN caballo (ni los 45 ni ninguno agregado) se pierda
+        const horsesMap = new Map<string, HorseRecord>();
+
+        // 1. Agregar todos los de Supabase
+        supabaseHorses.forEach((h) => {
+          const key = (h.nombre || h.id || '').toLowerCase().trim();
+          horsesMap.set(key, h);
+        });
+
+        // 2. Unificar con los de localStorage (preservando TODOS los que falten en Supabase)
+        localHorses.forEach((lh) => {
+          const key = (lh.nombre || lh.id || '').toLowerCase().trim();
+          if (!horsesMap.has(key)) {
+            horsesMap.set(key, lh);
+          } else {
+            const existing = horsesMap.get(key)!;
+            const hasBetterPhoto = lh.foto && !lh.foto.includes('placeholders') && (!existing.foto || existing.foto.includes('placeholders'));
+            horsesMap.set(key, {
+              ...existing,
+              foto: hasBetterPhoto ? lh.foto : existing.foto,
+              descripcion: existing.descripcion || lh.descripcion,
+              manada_id: existing.manada_id || lh.manada_id,
+              manada_nombre: existing.manada_nombre || lh.manada_nombre,
+            });
+          }
+        });
+
+        if (horsesMap.size > 0) {
+          loadedHorses = Array.from(horsesMap.values());
         } else {
-          loadedHorses = localHorses.length > 0 ? localHorses : getFallbackHorses();
+          loadedHorses = getFallbackHorses();
         }
 
         horsesList = loadedHorses;
         saveLocalHorses();
 
+        // Si hay caballos en local que no están en Supabase, sincronizarlos automáticamente
+        if (isLiveDb && supabase && supabaseHorses.length < loadedHorses.length) {
+          const supabaseNames = new Set(supabaseHorses.map((h) => (h.nombre || '').toLowerCase().trim()));
+          const missingInRemote = loadedHorses.filter((h) => !supabaseNames.has((h.nombre || '').toLowerCase().trim()));
+          if (missingInRemote.length > 0) {
+            console.log(`[AlmasLibres] Sincronizando ${missingInRemote.length} caballos locales hacia Supabase...`);
+            try {
+              const toInsert = missingInRemote.map(({ id, created_at, ...rest }: any) => rest);
+              await supabase.from('caballos').insert(toInsert as any);
+            } catch (syncErr) {
+              console.warn('[AlmasLibres] Error sincronizando caballos locales:', syncErr);
+            }
+          }
+        }
+
         updateHorseSelectDropdowns();
         renderManadasBoard();
         renderHorsesGrid();
         updateBadges();
+        updateDiagnosticModalData();
       }
 
       function saveLocalHorses() {
@@ -1614,6 +1715,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         let loadedSponsors: Sponsor[] = [];
         const localSponsorsRaw = localStorage.getItem('almas_sponsors');
         const localSponsors: Sponsor[] = localSponsorsRaw ? JSON.parse(localSponsorsRaw) : [];
+        let supabaseSponsors: Sponsor[] = [];
 
         if (isLiveDb && supabase) {
           try {
@@ -1622,75 +1724,67 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
               .select('*')
               .order('created_at', { ascending: false });
 
-            if (sponsorsError) {
+            if (!sponsorsError && sponsorsData && sponsorsData.length > 0) {
+              supabaseSponsors = sponsorsData;
+            } else if (sponsorsError) {
               console.warn('[AlmasLibres] Error al leer padrinos en Supabase:', sponsorsError.message);
-              // Fallback a localStorage
-              loadedSponsors = localSponsors;
-            } else if (sponsorsData && sponsorsData.length > 0) {
-              loadedSponsors = sponsorsData;
-
-              // Si en localStorage había padrinos que no están en Supabase, los unificamos
-              if (localSponsors.length > 0) {
-                const supabaseIds = new Set(sponsorsData.map((s) => s.id));
-                const missingInSupabase = localSponsors.filter((ls) => !supabaseIds.has(ls.id));
-                if (missingInSupabase.length > 0) {
-                  console.log(`[AlmasLibres] Unificando ${missingInSupabase.length} padrinos guardados localmente...`);
-                  loadedSponsors = [...missingInSupabase, ...loadedSponsors];
-
-                  // Subir los faltantes a Supabase en segundo plano
-                  try {
-                    const toInsert = missingInSupabase.map(({ id, created_at, ...rest }: any) => rest);
-                    await supabase.from('padrinos').insert(toInsert);
-                  } catch (syncErr) {
-                    console.warn('[AlmasLibres] Auto-sincronización a Supabase diferida:', syncErr);
-                  }
-                }
-              }
-            } else {
-              // Supabase está conectado pero no tiene filas:
-              // Verificamos si el usuario había cargado padrinos en localStorage
-              if (localSponsors.length > 0) {
-                console.log(`[AlmasLibres] Recuperando ${localSponsors.length} padrinos desde almacenamiento local...`);
-                loadedSponsors = localSponsors;
-
-                // Intentamos migrarlos automáticamente a Supabase
-                try {
-                  const toInsert = localSponsors.map(({ id, created_at, ...rest }: any) => rest);
-                  const { data: inserted, error: insertErr } = await supabase.from('padrinos').insert(toInsert).select();
-                  if (!insertErr && inserted && inserted.length > 0) {
-                    loadedSponsors = inserted;
-                  }
-                } catch (syncErr) {
-                  console.warn('[AlmasLibres] Error migrando padrinos locales a Supabase:', syncErr);
-                }
-              }
-            }
-
-            try {
-              await loadReportsForYear(activeYear);
-            } catch (repErr) {
-              console.warn('[AlmasLibres] Error cargando reportes:', repErr);
             }
           } catch (err) {
-            console.warn('[AlmasLibres] Error de conexión con Supabase, usando copia local:', err);
-            loadedSponsors = localSponsors;
-          }
-        } else {
-          loadedSponsors = localSponsors;
-          try {
-            await loadReportsForYear(activeYear);
-          } catch (repErr) {
-            console.warn('[AlmasLibres] Error cargando reportes locales:', repErr);
+            console.warn('[AlmasLibres] Error de conexión con Supabase para padrinos:', err);
           }
         }
 
+        // UNIFICACIÓN SIN PÉRDIDA: Supabase + LocalStorage
+        const sponsorsMap = new Map<string, Sponsor>();
+
+        // 1. Padrinos de Supabase
+        supabaseSponsors.forEach((sp) => {
+          sponsorsMap.set(sp.id, sp);
+        });
+
+        // 2. Unificar con los de localStorage que falten
+        localSponsors.forEach((lsp) => {
+          if (!sponsorsMap.has(lsp.id)) {
+            const alreadyExists = Array.from(sponsorsMap.values()).some(
+              (s) =>
+                (s.nombre || '').toLowerCase().trim() === (lsp.nombre || '').toLowerCase().trim() &&
+                s.caballo_id === lsp.caballo_id
+            );
+            if (!alreadyExists) {
+              sponsorsMap.set(lsp.id, lsp);
+            }
+          }
+        });
+
+        loadedSponsors = Array.from(sponsorsMap.values());
         sponsors = loadedSponsors;
-        // Guardar siempre copia de seguridad en localStorage
         saveLocalStorage();
+
+        // Sincronizar hacia Supabase si hay padrinos locales faltantes en la base remota
+        if (isLiveDb && supabase && supabaseSponsors.length < loadedSponsors.length) {
+          const supabaseIds = new Set(supabaseSponsors.map((s) => s.id));
+          const missingInRemote = loadedSponsors.filter((s) => !supabaseIds.has(s.id));
+          if (missingInRemote.length > 0) {
+            console.log(`[AlmasLibres] Sincronizando ${missingInRemote.length} padrinos locales a Supabase...`);
+            try {
+              const toInsert = missingInRemote.map(({ id, created_at, ...rest }: any) => rest);
+              await supabase.from('padrinos').insert(toInsert as any);
+            } catch (syncErr) {
+              console.warn('[AlmasLibres] Auto-sincronización de padrinos diferida:', syncErr);
+            }
+          }
+        }
+
+        try {
+          await loadReportsForYear(activeYear);
+        } catch (repErr) {
+          console.warn('[AlmasLibres] Error cargando reportes:', repErr);
+        }
 
         renderTable();
         updateMetrics();
         updateBadges();
+        updateDiagnosticModalData();
       }
 
       async function loadReportsForYear(year: number) {
@@ -2228,6 +2322,126 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         showToast('Planilla CSV descargada');
       }
 
+      // ==========================================
+      // DIAGNÓSTICO Y RESPALDO COMPLETO
+      // ==========================================
+      function updateDiagnosticModalData() {
+        const diagDbStatus = document.getElementById('diagDbStatus');
+        const diagDbUrl = document.getElementById('diagDbUrl');
+        const diagHorsesTotal = document.getElementById('diagHorsesTotal');
+        const diagHorsesRemote = document.getElementById('diagHorsesRemote');
+        const diagHorsesLocal = document.getElementById('diagHorsesLocal');
+        const diagSponsorsTotal = document.getElementById('diagSponsorsTotal');
+        const diagSponsorsRemote = document.getElementById('diagSponsorsRemote');
+        const diagSponsorsLocal = document.getElementById('diagSponsorsLocal');
+
+        if (diagDbStatus) {
+          diagDbStatus.textContent = isLiveDb ? 'En línea con Supabase' : 'Almacenamiento Local (navegador)';
+          diagDbStatus.className = isLiveDb ? 'status-pill live' : 'status-pill demo';
+        }
+        if (diagDbUrl) {
+          diagDbUrl.textContent = activeSupabaseUrl || (isLiveDb ? 'Conectado a Supabase' : 'No configurado');
+        }
+
+        let localHorsesCount = 0;
+        let localSponsorsCount = 0;
+        try {
+          localHorsesCount = JSON.parse(localStorage.getItem('almas_horses') || '[]').length;
+          localSponsorsCount = JSON.parse(localStorage.getItem('almas_sponsors') || '[]').length;
+        } catch {}
+
+        if (diagHorsesTotal) diagHorsesTotal.textContent = `${horsesList.length} total`;
+        if (diagHorsesLocal) diagHorsesLocal.textContent = `${localHorsesCount} en navegador`;
+        if (diagHorsesRemote) diagHorsesRemote.textContent = isLiveDb ? `${horsesList.length} sincronizados` : 'Supabase no conectado';
+
+        if (diagSponsorsTotal) diagSponsorsTotal.textContent = `${sponsors.length} total`;
+        if (diagSponsorsLocal) diagSponsorsLocal.textContent = `${localSponsorsCount} en navegador`;
+        if (diagSponsorsRemote) diagSponsorsRemote.textContent = isLiveDb ? `${sponsors.length} sincronizados` : 'Supabase no conectado';
+      }
+
+      function openBackupModal() {
+        updateDiagnosticModalData();
+        backupModal.classList.add('open');
+      }
+
+      function closeBackupModal() {
+        backupModal.classList.remove('open');
+      }
+
+      function exportFullJsonBackup() {
+        const backupData = {
+          exportDate: new Date().toISOString(),
+          version: '1.0',
+          horses: horsesList,
+          sponsors: sponsors,
+          manadas: manadasList,
+          reports: reports,
+          activeYear: activeYear,
+        };
+
+        const jsonContent = JSON.stringify(backupData, null, 2);
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `respaldo-almas-libres-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Respaldo JSON descargado con éxito');
+      }
+
+      async function restoreFromJsonFile(file: File) {
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+
+          if (!data || (!data.horses && !data.sponsors)) {
+            alert('El archivo no parece ser un respaldo válido de Almas Libres.');
+            return;
+          }
+
+          const hCount = data.horses?.length || 0;
+          const sCount = data.sponsors?.length || 0;
+          if (confirm(`Se restaurarán:\n• ${hCount} caballos\n• ${sCount} padrinos\n• ${data.manadas?.length || 0} manadas\n\n¿Continuar?`)) {
+            if (data.horses && data.horses.length > 0) {
+              horsesList = data.horses;
+              saveLocalHorses();
+              if (isLiveDb && supabase) {
+                const toInsert = data.horses.map(({ id, created_at, ...rest }: any) => rest);
+                await supabase.from('caballos').insert(toInsert as any);
+              }
+            }
+
+            if (data.sponsors && data.sponsors.length > 0) {
+              sponsors = data.sponsors;
+              saveLocalStorage();
+              if (isLiveDb && supabase) {
+                const toInsert = data.sponsors.map(({ id, created_at, ...rest }: any) => rest);
+                await supabase.from('padrinos').insert(toInsert as any);
+              }
+            }
+
+            if (data.manadas && data.manadas.length > 0) {
+              manadasList = data.manadas;
+              saveLocalManadas();
+            }
+
+            closeBackupModal();
+            updateHorseSelectDropdowns();
+            renderManadasBoard();
+            renderHorsesGrid();
+            renderTable();
+            updateMetrics();
+            updateBadges();
+            showToast('Datos restaurados correctamente');
+          }
+        } catch (err: any) {
+          alert('Error leyendo el archivo JSON: ' + (err.message || err));
+        }
+      }
+
       // Configurar Listeners generales
       function setupEventListeners() {
         // Pestañas Principales
@@ -2300,7 +2514,59 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         filterHorseManadaSelect.addEventListener('change', renderHorsesGrid);
 
         btnExportCsv.addEventListener('click', exportToCsv);
+
+        // Modal de Respaldo y Diagnóstico
+        const btnOpenBackupModal = document.getElementById('btnOpenBackupModal');
+        if (btnOpenBackupModal) btnOpenBackupModal.addEventListener('click', openBackupModal);
+
+        const btnBackupModalClose = document.getElementById('btnBackupModalClose');
+        if (btnBackupModalClose) btnBackupModalClose.addEventListener('click', closeBackupModal);
+
+        backupModal.addEventListener('click', (e) => {
+          if (e.target === backupModal) closeBackupModal();
+        });
+
+        const btnExportFullJson = document.getElementById('btnExportFullJson');
+        if (btnExportFullJson) btnExportFullJson.addEventListener('click', exportFullJsonBackup);
+
+        const inputRestoreJson = document.getElementById('inputRestoreJson') as HTMLInputElement;
+        if (inputRestoreJson) {
+          inputRestoreJson.addEventListener('change', () => {
+            if (inputRestoreJson.files && inputRestoreJson.files[0]) {
+              restoreFromJsonFile(inputRestoreJson.files[0]);
+              inputRestoreJson.value = '';
+            }
+          });
+        }
+
+        const btnForceResync = document.getElementById('btnForceResync');
+        if (btnForceResync) {
+          btnForceResync.addEventListener('click', async () => {
+            btnForceResync.textContent = 'Sincronizando...';
+            await loadHorsesData();
+            await loadSponsorsData();
+            btnForceResync.innerHTML = '<span>🔄</span> Forzar Resincronización Completa';
+            showToast('Sincronización completada');
+          });
+        }
       }
+
+      // Herramientas globales de recuperación para consola del navegador
+      (window as any).almasData = {
+        getHorses: () => horsesList,
+        getSponsors: () => sponsors,
+        getReports: () => reports,
+        getLocalStorage: () => ({
+          horses: JSON.parse(localStorage.getItem('almas_horses') || '[]'),
+          sponsors: JSON.parse(localStorage.getItem('almas_sponsors') || '[]'),
+          reports: JSON.parse(localStorage.getItem(`almas_reports_${activeYear}`) || '[]'),
+        }),
+        exportBackup: () => exportFullJsonBackup(),
+        resync: async () => {
+          await loadHorsesData();
+          await loadSponsorsData();
+        },
+      };
 
       function showToast(msg: string, isError = false) {
         toastMessage.textContent = msg;

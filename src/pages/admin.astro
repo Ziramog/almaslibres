@@ -148,8 +148,8 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
             </select>
 
             <select id="filterStatus" class="filter-select">
-              <option value="all">Todos los estados</option>
-              <option value="activo" selected>Solo Activos</option>
+              <option value="all" selected>Todos los estados</option>
+              <option value="activo">Solo Activos</option>
               <option value="pausado">Pausados</option>
               <option value="baja">De Baja</option>
             </select>
@@ -191,8 +191,11 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           <!-- Estado vacío si no hay coincidencias -->
           <div id="emptyState" class="empty-table-state" style="display: none;">
             <div style="font-size: 2.5rem;">🐴</div>
-            <h3>No se encontraron padrinos</h3>
-            <p>Podés registrar el primero haciendo clic en <strong>"+ Nuevo Padrino"</strong>.</p>
+            <h3>No se encontraron padrinos con los filtros actuales</h3>
+            <p>Podés registrar uno nuevo con <strong>"+ Nuevo Padrino"</strong> o restablecer la búsqueda.</p>
+            <button type="button" id="btnResetFilters" class="btn-secondary" style="margin-top: 0.75rem; display: inline-flex;">
+              Restablecer Filtros
+            </button>
           </div>
         </div>
       </div>
@@ -679,9 +682,25 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         highlightCurrentMonthHeaders();
         setupYearSelector();
         setupEventListeners();
-        await loadManadasData();
-        await loadHorsesData();
-        await loadSponsorsData();
+
+        // Carga secuencial protegida con try/catch independiente para evitar bloqueos en cascada
+        try {
+          await loadManadasData();
+        } catch (err) {
+          console.warn('[AlmasLibres] Error al cargar manadas:', err);
+        }
+
+        try {
+          await loadHorsesData();
+        } catch (err) {
+          console.warn('[AlmasLibres] Error al cargar caballos:', err);
+        }
+
+        try {
+          await loadSponsorsData();
+        } catch (err) {
+          console.warn('[AlmasLibres] Error al cargar padrinos:', err);
+        }
       }
 
       function updateDbStatus() {
@@ -730,6 +749,10 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       ];
 
       async function loadManadasData() {
+        let loadedManadas: ManadaRecord[] = [];
+        const local = localStorage.getItem('almas_manadas');
+        const localManadas = local ? JSON.parse(local) : DEFAULT_MANADAS;
+
         if (isLiveDb && supabase) {
           try {
             const { data, error } = await supabase
@@ -738,17 +761,19 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
               .order('nombre', { ascending: true });
 
             if (!error && data && data.length > 0) {
-              manadasList = data;
+              loadedManadas = data;
             } else {
-              loadLocalManadas();
+              loadedManadas = localManadas;
             }
           } catch {
-            loadLocalManadas();
+            loadedManadas = localManadas;
           }
         } else {
-          loadLocalManadas();
+          loadedManadas = localManadas;
         }
 
+        manadasList = loadedManadas;
+        saveLocalManadas();
         updateManadaSelectDropdowns();
       }
 
@@ -1094,7 +1119,19 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         { nombre: 'Chimango', slug: 'chimango', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-02.svg', descripcion: 'Un sobreviviente que hoy disfruta de la tranquilidad del santuario.' },
       ];
 
+      function getFallbackHorses(): HorseRecord[] {
+        return INITIAL_HORSES.map((h, i) => ({
+          ...h,
+          id: `horse-auto-${i + 1}`,
+          created_at: new Date().toISOString(),
+        })) as HorseRecord[];
+      }
+
       async function loadHorsesData() {
+        let loadedHorses: HorseRecord[] = [];
+        const local = localStorage.getItem('almas_horses');
+        const localHorses: HorseRecord[] = local ? JSON.parse(local) : [];
+
         if (isLiveDb && supabase) {
           try {
             const { data, error } = await supabase
@@ -1104,31 +1141,58 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
             if (error) {
               console.warn('Tabla caballos no creada aún o con error en Supabase:', error.message);
-              loadLocalHorses();
+              loadedHorses = localHorses.length > 0 ? localHorses : getFallbackHorses();
             } else if (data && data.length > 0) {
-              horsesList = data;
+              loadedHorses = data;
+              // Si en local había caballos con fotos editadas o datos que en Supabase tienen placeholder, preservamos los cambios del usuario
+              if (localHorses.length > 0) {
+                loadedHorses = loadedHorses.map((h) => {
+                  const match = localHorses.find(
+                    (lh) => lh.id === h.id || (lh.nombre && h.nombre && lh.nombre.toLowerCase().trim() === h.nombre.toLowerCase().trim())
+                  );
+                  if (match) {
+                    const hasBetterPhoto = match.foto && !match.foto.includes('placeholders') && (!h.foto || h.foto.includes('placeholders'));
+                    return {
+                      ...h,
+                      foto: hasBetterPhoto ? match.foto : h.foto,
+                      descripcion: h.descripcion || match.descripcion,
+                      manada_id: h.manada_id || match.manada_id,
+                      manada_nombre: h.manada_nombre || match.manada_nombre,
+                    };
+                  }
+                  return h;
+                });
+              }
             } else {
+              // Supabase está vacío: sembrar con datos locales si existen o con INITIAL_HORSES
+              const toInsert = localHorses.length > 0
+                ? localHorses.map(({ id, created_at, ...rest }) => rest)
+                : INITIAL_HORSES;
+
               try {
                 const { data: seeded, error: seedError } = await supabase
                   .from('caballos')
-                  .insert(INITIAL_HORSES)
+                  .insert(toInsert)
                   .select();
                 if (!seedError && seeded && seeded.length > 0) {
-                  horsesList = seeded;
+                  loadedHorses = seeded;
                 } else {
-                  loadLocalHorses();
+                  loadedHorses = localHorses.length > 0 ? localHorses : getFallbackHorses();
                 }
               } catch {
-                loadLocalHorses();
+                loadedHorses = localHorses.length > 0 ? localHorses : getFallbackHorses();
               }
             }
           } catch (err) {
             console.warn('Error cargando caballos de Supabase:', err);
-            loadLocalHorses();
+            loadedHorses = localHorses.length > 0 ? localHorses : getFallbackHorses();
           }
         } else {
-          loadLocalHorses();
+          loadedHorses = localHorses.length > 0 ? localHorses : getFallbackHorses();
         }
+
+        horsesList = loadedHorses;
+        saveLocalHorses();
 
         updateHorseSelectDropdowns();
         renderManadasBoard();
@@ -1141,11 +1205,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         if (local) {
           horsesList = JSON.parse(local);
         } else {
-          horsesList = INITIAL_HORSES.map((h, i) => ({
-            ...h,
-            id: `horse-auto-${i + 1}`,
-            created_at: new Date().toISOString(),
-          })) as HorseRecord[];
+          horsesList = getFallbackHorses();
           saveLocalHorses();
         }
       }
@@ -1576,6 +1636,10 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       // GESTIÓN DE PADRINOS (CARGA Y CRUD)
       // ==========================================
       async function loadSponsorsData() {
+        let loadedSponsors: Sponsor[] = [];
+        const localSponsorsRaw = localStorage.getItem('almas_sponsors');
+        const localSponsors: Sponsor[] = localSponsorsRaw ? JSON.parse(localSponsorsRaw) : [];
+
         if (isLiveDb && supabase) {
           try {
             const { data: sponsorsData, error: sponsorsError } = await supabase
@@ -1583,19 +1647,71 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
               .select('*')
               .order('created_at', { ascending: false });
 
-            if (sponsorsError) throw sponsorsError;
-            sponsors = sponsorsData || [];
+            if (sponsorsError) {
+              console.warn('[AlmasLibres] Error al leer padrinos en Supabase:', sponsorsError.message);
+              // Fallback a localStorage
+              loadedSponsors = localSponsors;
+            } else if (sponsorsData && sponsorsData.length > 0) {
+              loadedSponsors = sponsorsData;
 
-            await loadReportsForYear(activeYear);
+              // Si en localStorage había padrinos que no están en Supabase, los unificamos
+              if (localSponsors.length > 0) {
+                const supabaseIds = new Set(sponsorsData.map((s) => s.id));
+                const missingInSupabase = localSponsors.filter((ls) => !supabaseIds.has(ls.id));
+                if (missingInSupabase.length > 0) {
+                  console.log(`[AlmasLibres] Unificando ${missingInSupabase.length} padrinos guardados localmente...`);
+                  loadedSponsors = [...missingInSupabase, ...loadedSponsors];
+
+                  // Subir los faltantes a Supabase en segundo plano
+                  try {
+                    const toInsert = missingInSupabase.map(({ id, created_at, ...rest }: any) => rest);
+                    await supabase.from('padrinos').insert(toInsert);
+                  } catch (syncErr) {
+                    console.warn('[AlmasLibres] Auto-sincronización a Supabase diferida:', syncErr);
+                  }
+                }
+              }
+            } else {
+              // Supabase está conectado pero no tiene filas:
+              // Verificamos si el usuario había cargado padrinos en localStorage
+              if (localSponsors.length > 0) {
+                console.log(`[AlmasLibres] Recuperando ${localSponsors.length} padrinos desde almacenamiento local...`);
+                loadedSponsors = localSponsors;
+
+                // Intentamos migrarlos automáticamente a Supabase
+                try {
+                  const toInsert = localSponsors.map(({ id, created_at, ...rest }: any) => rest);
+                  const { data: inserted, error: insertErr } = await supabase.from('padrinos').insert(toInsert).select();
+                  if (!insertErr && inserted && inserted.length > 0) {
+                    loadedSponsors = inserted;
+                  }
+                } catch (syncErr) {
+                  console.warn('[AlmasLibres] Error migrando padrinos locales a Supabase:', syncErr);
+                }
+              }
+            }
+
+            try {
+              await loadReportsForYear(activeYear);
+            } catch (repErr) {
+              console.warn('[AlmasLibres] Error cargando reportes:', repErr);
+            }
           } catch (err) {
-            console.warn('Error conectando a Supabase, recurriendo a almacenamiento local:', err);
-            isLiveDb = false;
-            updateDbStatus();
-            loadLocalStorageData();
+            console.warn('[AlmasLibres] Error de conexión con Supabase, usando copia local:', err);
+            loadedSponsors = localSponsors;
           }
         } else {
-          loadLocalStorageData();
+          loadedSponsors = localSponsors;
+          try {
+            await loadReportsForYear(activeYear);
+          } catch (repErr) {
+            console.warn('[AlmasLibres] Error cargando reportes locales:', repErr);
+          }
         }
+
+        sponsors = loadedSponsors;
+        // Guardar siempre copia de seguridad en localStorage
+        saveLocalStorage();
 
         renderTable();
         updateMetrics();
@@ -1603,6 +1719,9 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       }
 
       async function loadReportsForYear(year: number) {
+        const localReportsRaw = localStorage.getItem(`almas_reports_${year}`);
+        const localReports: MonthlyReportRecord[] = localReportsRaw ? JSON.parse(localReportsRaw) : [];
+
         if (isLiveDb && supabase) {
           try {
             const { data: reportsData, error: reportsError } = await supabase
@@ -1610,14 +1729,31 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
               .select('*')
               .eq('anio', year);
 
-            if (reportsError) throw reportsError;
-            reports = reportsData || [];
+            if (reportsError) {
+              console.warn('[AlmasLibres] Error en reportes de Supabase:', reportsError.message);
+              reports = localReports;
+            } else {
+              reports = reportsData || [];
+              if (reports.length === 0 && localReports.length > 0) {
+                reports = localReports;
+                try {
+                  const toInsert = localReports.map(({ id, ...rest }: any) => rest);
+                  await supabase.from('reportes_mensuales').upsert(toInsert, { onConflict: 'padrino_id,anio,mes' });
+                } catch (e) {
+                  console.warn('[AlmasLibres] Sincronización de reportes locales diferida:', e);
+                }
+              }
+            }
           } catch (err) {
-            console.error('Error cargando reportes:', err);
+            console.warn('[AlmasLibres] Error de conexión en reportes:', err);
+            reports = localReports;
           }
         } else {
-          const localReports = localStorage.getItem(`almas_reports_${year}`);
-          reports = localReports ? JSON.parse(localReports) : [];
+          reports = localReports;
+        }
+
+        if (reports.length > 0) {
+          localStorage.setItem(`almas_reports_${year}`, JSON.stringify(reports));
         }
 
         renderTable();
@@ -1637,31 +1773,62 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       }
 
       function updateBadges() {
-        tabBadgeSponsors.textContent = String(sponsors.filter((s) => s.estado === 'activo').length);
+        tabBadgeSponsors.textContent = String(sponsors.filter((s) => (s.estado || 'activo').toLowerCase() === 'activo').length);
         tabBadgeHorses.textContent = String(horsesList.length);
-        document.getElementById('metricTotalHorsesCount')!.textContent = `de ${horsesList.length} en la manada`;
+        const horsesCountEl = document.getElementById('metricTotalHorsesCount');
+        if (horsesCountEl) {
+          horsesCountEl.textContent = `de ${horsesList.length} en la manada`;
+        }
       }
 
       // Render de la Tabla de Padrinos
       function renderTable() {
-        const query = searchInput.value.toLowerCase().trim();
-        const selectedHorse = filterHorse.value;
-        const selectedManada = filterManada.value;
-        const selectedStatus = filterStatus.value;
+        const query = (searchInput.value || '').toLowerCase().trim();
+        const selectedHorse = filterHorse ? filterHorse.value || 'all' : 'all';
+        const selectedManada = filterManada ? filterManada.value || 'all' : 'all';
+        const selectedStatus = filterStatus ? filterStatus.value || 'all' : 'all';
 
         const filtered = sponsors.filter((sp) => {
-          const matchesQuery =
-            sp.nombre.toLowerCase().includes(query) ||
-            (sp.telefono && sp.telefono.toLowerCase().includes(query)) ||
-            (sp.email && sp.email.toLowerCase().includes(query));
+          const spName = (sp.nombre || '').toLowerCase();
+          const spPhone = (sp.telefono || '').toLowerCase();
+          const spEmail = (sp.email || '').toLowerCase();
+          const spHorseName = (sp.caballo_nombre || '').toLowerCase();
 
-          const matchesHorse = selectedHorse === 'all' || sp.caballo_id === selectedHorse;
-          const matchesStatus = selectedStatus === 'all' || sp.estado === selectedStatus;
+          const matchesQuery =
+            !query ||
+            spName.includes(query) ||
+            spPhone.includes(query) ||
+            spEmail.includes(query) ||
+            spHorseName.includes(query);
+
+          // Coincidencia de caballo: por ID, slug o nombre
+          let matchesHorse = true;
+          if (selectedHorse !== 'all') {
+            const matchedHorse = horsesList.find(
+              (h) =>
+                h.id === sp.caballo_id ||
+                h.slug === sp.caballo_id ||
+                (h.nombre && sp.caballo_nombre && h.nombre.toLowerCase().trim() === sp.caballo_nombre.toLowerCase().trim())
+            );
+            matchesHorse = sp.caballo_id === selectedHorse || (!!matchedHorse && matchedHorse.id === selectedHorse);
+          }
+
+          // Coincidencia de estado (insensible a mayúsculas/minúsculas)
+          let matchesStatus = true;
+          if (selectedStatus !== 'all') {
+            const spStatus = (sp.estado || 'activo').toLowerCase();
+            matchesStatus = spStatus === selectedStatus.toLowerCase();
+          }
 
           // Filtro por manada
           let matchesManada = true;
           if (selectedManada !== 'all') {
-            const matchedHorse = horsesList.find((h) => h.id === sp.caballo_id);
+            const matchedHorse = horsesList.find(
+              (h) =>
+                h.id === sp.caballo_id ||
+                h.slug === sp.caballo_id ||
+                (h.nombre && sp.caballo_nombre && h.nombre.toLowerCase().trim() === sp.caballo_nombre.toLowerCase().trim())
+            );
             if (selectedManada === 'none') {
               matchesManada = !matchedHorse || !matchedHorse.manada_id;
             } else {
@@ -2148,6 +2315,17 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         filterHorse.addEventListener('change', renderTable);
         filterManada.addEventListener('change', renderTable);
         filterStatus.addEventListener('change', renderTable);
+
+        const btnResetFilters = document.getElementById('btnResetFilters');
+        if (btnResetFilters) {
+          btnResetFilters.addEventListener('click', () => {
+            searchInput.value = '';
+            filterHorse.value = 'all';
+            filterManada.value = 'all';
+            filterStatus.value = 'all';
+            renderTable();
+          });
+        }
 
         searchHorsesInput.addEventListener('input', renderHorsesGrid);
         filterHorseStatus.addEventListener('change', renderHorsesGrid);

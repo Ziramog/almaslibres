@@ -2,7 +2,16 @@
 -- Fundación Almas Libres - Esquema Completo Supabase (Idempotente)
 -- ========================================================
 
--- 1. Tabla de Caballos (La Manada)
+-- 1. Tabla de Manadas (Agrupación de Caballos)
+create table if not exists public.manadas (
+  id uuid primary key default gen_random_uuid(),
+  nombre text not null,
+  descripcion text,
+  color text default '#244137',
+  created_at timestamptz not null default now()
+);
+
+-- 2. Tabla de Caballos (La Manada)
 create table if not exists public.caballos (
   id uuid primary key default gen_random_uuid(),
   slug text,
@@ -11,10 +20,16 @@ create table if not exists public.caballos (
   descripcion text,
   estado text not null default 'disponible' check (estado in ('disponible', 'pausado', 'oculto')),
   destacado boolean default false,
+  manada_id uuid references public.manadas(id) on delete set null,
+  manada_nombre text,
   created_at timestamptz not null default now()
 );
 
--- 2. Tabla de Padrinos
+-- Asegurar columnas manada_id y manada_nombre si la tabla ya existía
+alter table public.caballos add column if not exists manada_id uuid references public.manadas(id) on delete set null;
+alter table public.caballos add column if not exists manada_nombre text;
+
+-- 3. Tabla de Padrinos
 create table if not exists public.padrinos (
   id uuid primary key default gen_random_uuid(),
   nombre text not null,
@@ -30,7 +45,7 @@ create table if not exists public.padrinos (
   created_at timestamptz not null default now()
 );
 
--- 3. Tabla de Reportes Mensuales Enviados (Ene - Dic)
+-- 4. Tabla de Reportes Mensuales Enviados (Ene - Dic)
 create table if not exists public.reportes_mensuales (
   id uuid primary key default gen_random_uuid(),
   padrino_id uuid not null references public.padrinos(id) on delete cascade,
@@ -41,18 +56,24 @@ create table if not exists public.reportes_mensuales (
   constraint padrino_anio_mes_unique unique (padrino_id, anio, mes)
 );
 
--- 4. Índices para búsqueda rápida
+-- 5. Índices para búsqueda rápida
+create index if not exists idx_caballos_manada on public.caballos(manada_id);
 create index if not exists idx_caballos_estado on public.caballos(estado);
 create index if not exists idx_padrinos_caballo on public.padrinos(caballo_id);
 create index if not exists idx_padrinos_estado on public.padrinos(estado);
 create index if not exists idx_reportes_padrino_anio on public.reportes_mensuales(padrino_id, anio);
 
--- 5. Habilitar Seguridad (RLS)
+-- 6. Habilitar Seguridad (RLS)
+alter table public.manadas enable row level security;
 alter table public.caballos enable row level security;
 alter table public.padrinos enable row level security;
 alter table public.reportes_mensuales enable row level security;
 
--- 6. Políticas de Acceso (se borran primero si ya existían para evitar error 42710)
+-- 7. Políticas de Acceso
+drop policy if exists "Acceso total a manadas para clave anon" on public.manadas;
+create policy "Acceso total a manadas para clave anon"
+  on public.manadas for all using (true) with check (true);
+
 drop policy if exists "Acceso total a caballos para clave anon" on public.caballos;
 create policy "Acceso total a caballos para clave anon"
   on public.caballos for all using (true) with check (true);
@@ -65,7 +86,7 @@ drop policy if exists "Acceso total a reportes para clave anon" on public.report
 create policy "Acceso total a reportes para clave anon"
   on public.reportes_mensuales for all using (true) with check (true);
 
--- 7. Bucket de Almacenamiento de Fotos de Caballos (Supabase Storage)
+-- 8. Bucket de Almacenamiento de Fotos de Caballos (Supabase Storage)
 insert into storage.buckets (id, name, public)
 values ('caballos', 'caballos', true)
 on conflict (id) do update set public = true;

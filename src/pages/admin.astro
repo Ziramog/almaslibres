@@ -26,7 +26,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
     data-current-year={currentYear}
     data-current-month={currentMonth}
   >
-    <!-- Pantalla de Bloqueo / PIN (se oculta si el PIN es correcto o si no hay PIN configurado) -->
+    <!-- Pantalla de Bloqueo / PIN -->
     <div id="lockScreen" class="lock-screen-wrapper" style="display: none;">
       <div class="lock-card">
         <span class="lock-badge">Acceso Interno</span>
@@ -76,7 +76,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           <button type="button" id="btnExportCsv" class="btn-secondary" title="Descargar como Excel/CSV">
             <span>📥</span> Exportar CSV
           </button>
-          <button type="button" id="btnOpenAddHorseModal" class="btn-secondary" title="Agregar un caballo a la manada">
+          <button type="button" id="btnOpenAddHorseModal" class="btn-secondary" title="Agregar un caballo">
             <span>🐴</span> + Nuevo Caballo
           </button>
           <button type="button" id="btnOpenAddModal" class="btn-primary" title="Registrar nuevo padrino">
@@ -88,14 +88,13 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         </div>
       </header>
 
-
       <!-- Pestañas de Navegación -->
       <nav class="admin-nav-tabs">
         <button type="button" class="admin-tab-btn active" id="tabBtnSponsors">
           <span>📋</span> Planilla de Padrinos <span class="tab-badge" id="tabBadgeSponsors">0</span>
         </button>
         <button type="button" class="admin-tab-btn" id="tabBtnHorses">
-          <span>🐴</span> Manada de Caballos <span class="tab-badge" id="tabBadgeHorses">0</span>
+          <span>🐴</span> Caballos y Manadas <span class="tab-badge" id="tabBadgeHorses">0</span>
         </button>
       </nav>
 
@@ -108,7 +107,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           <article class="metric-card">
             <div class="metric-label">Padrinos Activos</div>
             <div class="metric-value" id="metricActiveSponsors">0</div>
-            <div class="metric-sub" id="metricTotalSponsors">Total registrados: 0</div>
+            <div class="metric-sub" id="metricTotalSponsors">Total apadrinamientos: 0</div>
           </article>
           <article class="metric-card">
             <div class="metric-label">Caballos con Padrino</div>
@@ -142,6 +141,10 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           <div class="filter-selects">
             <select id="filterHorse" class="filter-select">
               <option value="all">Todos los caballos</option>
+            </select>
+
+            <select id="filterManada" class="filter-select">
+              <option value="all">Todas las manadas</option>
             </select>
 
             <select id="filterStatus" class="filter-select">
@@ -195,47 +198,78 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       </div>
 
       <!-- ========================================== -->
-      <!-- VISTA 2: GESTIÓN DE CABALLOS (LA MANADA)   -->
+      <!-- VISTA 2: GESTIÓN DE CABALLOS Y MANADAS     -->
       <!-- ========================================== -->
       <div id="viewHorses" style="display: none;">
-        <div class="admin-filterbar">
-          <div class="search-input-wrapper">
-            <span class="search-icon">🔍</span>
-            <input
-              type="text"
-              id="searchHorsesInput"
-              class="search-input"
-              placeholder="Buscar caballo por nombre o historia..."
-            />
+        <!-- Subnavegación de Manadas -->
+        <div class="view-subnav">
+          <div class="subnav-pills">
+            <button type="button" class="subnav-btn active" id="subnavBtnManadas">
+              <span>🗂️</span> Vista por Manadas
+            </button>
+            <button type="button" class="subnav-btn" id="subnavBtnAllHorses">
+              <span>📋</span> Todos los Caballos (<span id="totalHorsesBadge">0</span>)
+            </button>
           </div>
 
-          <div class="filter-selects">
-            <select id="filterHorseStatus" class="filter-select">
-              <option value="all">Todos los estados</option>
-              <option value="disponible" selected>Disponibles para apadrinar</option>
-              <option value="pausado">Pausados</option>
-              <option value="oculto">Ocultos</option>
-            </select>
-
-            <button type="button" id="btnQuickAddHorse" class="btn-primary">
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button type="button" id="btnOpenAddManadaModal" class="btn-secondary" title="Crear un nuevo grupo/manada">
+              <span>🗂️</span> + Nueva Manada
+            </button>
+            <button type="button" id="btnQuickAddHorse" class="btn-primary" title="Agregar un caballo">
               <span>+</span> Agregar Caballo
             </button>
           </div>
         </div>
 
-        <div class="horses-grid" id="horsesGridContainer">
-          <!-- Renderizado dinámico vía JavaScript -->
+        <!-- 2A. Tablero Visual de Manadas (Columnas por grupo) -->
+        <div id="manadasBoardView">
+          <div class="manadas-board" id="manadasBoardContainer">
+            <!-- Renderizado dinámico vía JavaScript -->
+          </div>
         </div>
 
-        <div id="horsesEmptyState" class="empty-table-state" style="display: none;">
-          <div style="font-size: 2.5rem;">🐴</div>
-          <h3>No se encontraron caballos</h3>
-          <p>Podés sumar el primero haciendo clic en <strong>"+ Agregar Caballo"</strong>.</p>
+        <!-- 2B. Listado General de Todos los Caballos -->
+        <div id="allHorsesView" style="display: none;">
+          <div class="admin-filterbar">
+            <div class="search-input-wrapper">
+              <span class="search-icon">🔍</span>
+              <input
+                type="text"
+                id="searchHorsesInput"
+                class="search-input"
+                placeholder="Buscar caballo por nombre o historia..."
+              />
+            </div>
+
+            <div class="filter-selects">
+              <select id="filterHorseManadaSelect" class="filter-select">
+                <option value="all">Todas las manadas</option>
+              </select>
+
+              <select id="filterHorseStatus" class="filter-select">
+                <option value="all">Todos los estados</option>
+                <option value="disponible" selected>Disponibles para apadrinar</option>
+                <option value="pausado">Pausados</option>
+                <option value="oculto">Ocultos</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="horses-grid" id="horsesGridContainer">
+            <!-- Renderizado dinámico vía JavaScript -->
+          </div>
+
+          <div id="horsesEmptyState" class="empty-table-state" style="display: none;">
+            <div style="font-size: 2.5rem;">🐴</div>
+            <h3>No se encontraron caballos</h3>
+            <p>Podés sumar el primero haciendo clic en <strong>"+ Agregar Caballo"</strong>.</p>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Modal Formulario Padrino (Alta / Edición) -->
+    <!-- Modal Formulario Padrino (Alta / Edición con Selector Múltiple y Búsqueda) -->
     <div id="sponsorModal" class="modal-overlay">
       <div class="modal-window">
         <div class="modal-header">
@@ -252,11 +286,29 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
               <input type="text" id="formNombre" class="form-input" required placeholder="Ej: Marcela López" />
             </div>
 
+            <!-- Selector Múltiple de Caballos con Búsqueda y Orden A-Z -->
             <div class="form-group full">
-              <label for="formCaballoId">Caballo que apadrina *</label>
-              <select id="formCaballoId" class="form-select" required>
-                <option value="">Seleccionar caballo...</option>
-              </select>
+              <label>Caballo(s) que apadrina * <span style="font-weight: 500; color: var(--muted);">(Podés seleccionar más de uno)</span></label>
+              <div class="horse-picker-container">
+                <div class="picker-search-wrapper">
+                  <span class="picker-search-icon">🔍</span>
+                  <input
+                    type="text"
+                    id="pickerHorseSearch"
+                    class="picker-search-input"
+                    placeholder="Buscar caballo por nombre..."
+                    autocomplete="off"
+                  />
+                </div>
+
+                <div class="picker-selected-summary" id="pickerSelectedSummary">
+                  <span class="picker-hint">Ningún caballo seleccionado todavía.</span>
+                </div>
+
+                <div class="picker-horses-list" id="pickerHorsesList">
+                  <!-- Renderizado ordenado A-Z vía JavaScript -->
+                </div>
+              </div>
             </div>
 
             <div class="form-group">
@@ -309,7 +361,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
           <div class="form-actions">
             <button type="button" id="btnModalCancel" class="btn-secondary">Cancelar</button>
-            <button type="submit" id="btnModalSave" class="btn-primary">Guardar Padrino</button>
+            <button type="submit" id="btnModalSave" class="btn-primary">Guardar Padrinazgo</button>
           </div>
         </form>
       </div>
@@ -351,19 +403,18 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
             </div>
 
             <div class="form-group">
+              <label for="formHorseManada">Manada a la que pertenece</label>
+              <select id="formHorseManada" class="form-select">
+                <option value="">Sin manada asignada</option>
+              </select>
+            </div>
+
+            <div class="form-group">
               <label for="formHorseEstado">Estado para Apadrinar</label>
               <select id="formHorseEstado" class="form-select">
                 <option value="disponible">Disponible</option>
                 <option value="pausado">Pausado</option>
                 <option value="oculto">Oculto</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="formHorseDestacado">¿Destacar en Inicio?</label>
-              <select id="formHorseDestacado" class="form-select">
-                <option value="false">No</option>
-                <option value="true">Sí (Destacado)</option>
               </select>
             </div>
 
@@ -386,6 +437,45 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       </div>
     </div>
 
+    <!-- Modal Formulario Manada (Crear / Editar Grupo) -->
+    <div id="manadaModal" class="modal-overlay">
+      <div class="modal-window" style="max-width: 460px;">
+        <div class="modal-header">
+          <h2 id="manadaModalTitle">Nueva Manada</h2>
+          <button type="button" id="btnManadaModalClose" class="modal-close-btn">&times;</button>
+        </div>
+
+        <form id="manadaForm">
+          <input type="hidden" id="formManadaId" value="" />
+
+          <div class="form-grid">
+            <div class="form-group full">
+              <label for="formManadaNombre">Nombre de la Manada *</label>
+              <input type="text" id="formManadaNombre" class="form-input" required placeholder="Ej: Manada Principal, Los Abuelitos..." />
+            </div>
+
+            <div class="form-group full">
+              <label for="formManadaColor">Color identificador</label>
+              <div style="display: flex; gap: 0.75rem; align-items: center;">
+                <input type="color" id="formManadaColor" value="#244137" style="width: 48px; height: 38px; border: none; border-radius: 8px; cursor: pointer;" />
+                <span style="font-size: 0.85rem; color: var(--muted);">Color para identificarla visualmente</span>
+              </div>
+            </div>
+
+            <div class="form-group full">
+              <label for="formManadaDescripcion">Descripción / Ubicación (Opcional)</label>
+              <textarea id="formManadaDescripcion" class="form-textarea" rows="2" placeholder="Ej: Paddock norte, caballos con necesidades de pastura suave..."></textarea>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="btnManadaModalCancel" class="btn-secondary">Cancelar</button>
+            <button type="submit" id="btnManadaModalSave" class="btn-primary">Guardar Manada</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Notificación Toast -->
     <div id="toast" class="toast-notice">
       <span id="toastIcon">✓</span>
@@ -395,7 +485,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
     <!-- Script de lógica de la aplicación -->
     <script>
       import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-      import type { Sponsor, MonthlyReportRecord, HorseRecord } from '@/lib/types';
+      import type { Sponsor, MonthlyReportRecord, HorseRecord, ManadaRecord } from '@/lib/types';
       import { MONTH_NAMES } from '@/lib/types';
 
       const bodyEl = document.body;
@@ -409,9 +499,14 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       let activeYear = config.currentYear;
       let sponsors: Sponsor[] = [];
       let horsesList: HorseRecord[] = [];
+      let manadasList: ManadaRecord[] = [];
       let reports: MonthlyReportRecord[] = [];
       let isLiveDb = isSupabaseConfigured;
       let activeTab: 'sponsors' | 'horses' = 'sponsors';
+      let horsesViewMode: 'manadas' | 'all' = 'manadas';
+
+      // Estado del selector de caballos en el modal de Padrino
+      let selectedHorseIds: Set<string> = new Set();
 
       // Elementos del DOM
       const lockScreen = document.getElementById('lockScreen')!;
@@ -431,11 +526,20 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       const tabBadgeHorses = document.getElementById('tabBadgeHorses')!;
       const yearSelectorGroup = document.getElementById('yearSelectorGroup')!;
 
+      // Subnavegación de caballos y manadas
+      const subnavBtnManadas = document.getElementById('subnavBtnManadas')!;
+      const subnavBtnAllHorses = document.getElementById('subnavBtnAllHorses')!;
+      const manadasBoardView = document.getElementById('manadasBoardView')!;
+      const allHorsesView = document.getElementById('allHorsesView')!;
+      const manadasBoardContainer = document.getElementById('manadasBoardContainer')!;
+      const totalHorsesBadge = document.getElementById('totalHorsesBadge')!;
+
       // Padrinos DOM
       const sponsorsTableBody = document.getElementById('sponsorsTableBody')!;
       const emptyState = document.getElementById('emptyState')!;
       const searchInput = document.getElementById('searchInput') as HTMLInputElement;
       const filterHorse = document.getElementById('filterHorse') as HTMLSelectElement;
+      const filterManada = document.getElementById('filterManada') as HTMLSelectElement;
       const filterStatus = document.getElementById('filterStatus') as HTMLSelectElement;
       const currentMonthNameLabel = document.getElementById('currentMonthNameLabel')!;
       const toastEl = document.getElementById('toast')!;
@@ -446,6 +550,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       const horsesEmptyState = document.getElementById('horsesEmptyState')!;
       const searchHorsesInput = document.getElementById('searchHorsesInput') as HTMLInputElement;
       const filterHorseStatus = document.getElementById('filterHorseStatus') as HTMLSelectElement;
+      const filterHorseManadaSelect = document.getElementById('filterHorseManadaSelect') as HTMLSelectElement;
 
       // Modales
       const sponsorModal = document.getElementById('sponsorModal')!;
@@ -454,8 +559,13 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       const btnModalClose = document.getElementById('btnModalClose')!;
       const btnModalCancel = document.getElementById('btnModalCancel')!;
       const btnOpenAddModal = document.getElementById('btnOpenAddModal')!;
-      const formCaballoId = document.getElementById('formCaballoId') as HTMLSelectElement;
 
+      // Horse Picker DOM
+      const pickerHorseSearch = document.getElementById('pickerHorseSearch') as HTMLInputElement;
+      const pickerSelectedSummary = document.getElementById('pickerSelectedSummary')!;
+      const pickerHorsesList = document.getElementById('pickerHorsesList')!;
+
+      // Modal Caballo
       const horseModal = document.getElementById('horseModal')!;
       const horseForm = document.getElementById('horseForm') as HTMLFormElement;
       const horseModalTitle = document.getElementById('horseModalTitle')!;
@@ -464,6 +574,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       const btnOpenAddHorseModal = document.getElementById('btnOpenAddHorseModal')!;
       const btnQuickAddHorse = document.getElementById('btnQuickAddHorse')!;
       const btnHorseModalSave = document.getElementById('btnHorseModalSave') as HTMLButtonElement;
+      const formHorseManada = document.getElementById('formHorseManada') as HTMLSelectElement;
 
       // Elementos de subida de imagen
       const formHorseFileInput = document.getElementById('formHorseFileInput') as HTMLInputElement;
@@ -473,6 +584,14 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       const imageUploadPlaceholder = document.getElementById('imageUploadPlaceholder')!;
       const uploadStatusText = document.getElementById('uploadStatusText')!;
       let selectedHorseFile: File | null = null;
+
+      // Modal Manada
+      const manadaModal = document.getElementById('manadaModal')!;
+      const manadaForm = document.getElementById('manadaForm') as HTMLFormElement;
+      const manadaModalTitle = document.getElementById('manadaModalTitle')!;
+      const btnManadaModalClose = document.getElementById('btnManadaModalClose')!;
+      const btnManadaModalCancel = document.getElementById('btnManadaModalCancel')!;
+      const btnOpenAddManadaModal = document.getElementById('btnOpenAddManadaModal')!;
 
       const btnLogout = document.getElementById('btnLogout')!;
       const btnExportCsv = document.getElementById('btnExportCsv')!;
@@ -514,7 +633,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         window.location.reload();
       });
 
-      // Cambio de pestañas
+      // Cambio de pestañas principales (Padrinos vs Caballos)
       function switchTab(tab: 'sponsors' | 'horses') {
         activeTab = tab;
         if (tab === 'sponsors') {
@@ -531,6 +650,25 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           viewHorses.style.display = 'block';
           yearSelectorGroup.style.display = 'none';
           btnExportCsv.style.display = 'none';
+          renderManadasBoard();
+          renderHorsesGrid();
+        }
+      }
+
+      // Cambio de sub-vista en Caballos (Manadas vs Todos)
+      function switchHorsesSubView(mode: 'manadas' | 'all') {
+        horsesViewMode = mode;
+        if (mode === 'manadas') {
+          subnavBtnManadas.classList.add('active');
+          subnavBtnAllHorses.classList.remove('active');
+          manadasBoardView.style.display = 'block';
+          allHorsesView.style.display = 'none';
+          renderManadasBoard();
+        } else {
+          subnavBtnManadas.classList.remove('active');
+          subnavBtnAllHorses.classList.add('active');
+          manadasBoardView.style.display = 'none';
+          allHorsesView.style.display = 'block';
           renderHorsesGrid();
         }
       }
@@ -541,6 +679,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         highlightCurrentMonthHeaders();
         setupYearSelector();
         setupEventListeners();
+        await loadManadasData();
         await loadHorsesData();
         await loadSponsorsData();
       }
@@ -582,6 +721,360 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       }
 
       // ==========================================
+      // GESTIÓN DE MANADAS (GRUPOS DE CABALLOS)
+      // ==========================================
+      const DEFAULT_MANADAS: ManadaRecord[] = [
+        { id: 'manada-principal', nombre: 'Manada Principal', color: '#244137', descripcion: 'Manada mayor en pasturas abiertas.' },
+        { id: 'manada-abuelos', nombre: 'Manada de los Abuelos', color: '#b96e46', descripcion: 'Caballos mayores con atención especial.' },
+        { id: 'manada-paddock-bajo', nombre: 'Manada del Paddock Bajo', color: '#2b8a3e', descripcion: 'Sector bajo con sombra y arboleda.' },
+      ];
+
+      async function loadManadasData() {
+        if (isLiveDb && supabase) {
+          try {
+            const { data, error } = await supabase
+              .from('manadas')
+              .select('*')
+              .order('nombre', { ascending: true });
+
+            if (!error && data && data.length > 0) {
+              manadasList = data;
+            } else {
+              loadLocalManadas();
+            }
+          } catch {
+            loadLocalManadas();
+          }
+        } else {
+          loadLocalManadas();
+        }
+
+        updateManadaSelectDropdowns();
+      }
+
+      function loadLocalManadas() {
+        const local = localStorage.getItem('almas_manadas');
+        if (local) {
+          manadasList = JSON.parse(local);
+        } else {
+          manadasList = DEFAULT_MANADAS;
+          saveLocalManadas();
+        }
+      }
+
+      function saveLocalManadas() {
+        localStorage.setItem('almas_manadas', JSON.stringify(manadasList));
+      }
+
+      function updateManadaSelectDropdowns() {
+        // Dropdown en el filtro de la tabla de padrinos
+        const curFilterManada = filterManada.value;
+        filterManada.innerHTML = '<option value="all">Todas las manadas</option><option value="none">Sin manada</option>';
+        manadasList.forEach((m) => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.nombre;
+          filterManada.appendChild(opt);
+        });
+        filterManada.value = curFilterManada || 'all';
+
+        // Dropdown en el filtro de la lista de caballos
+        const curFilterHorseManada = filterHorseManadaSelect.value;
+        filterHorseManadaSelect.innerHTML = '<option value="all">Todas las manadas</option><option value="none">Sin manada</option>';
+        manadasList.forEach((m) => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.nombre;
+          filterHorseManadaSelect.appendChild(opt);
+        });
+        filterHorseManadaSelect.value = curFilterHorseManada || 'all';
+
+        // Dropdown en el modal de caballo
+        const curFormManada = formHorseManada.value;
+        formHorseManada.innerHTML = '<option value="">Sin manada asignada</option>';
+        manadasList.forEach((m) => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.setAttribute('data-name', m.nombre);
+          opt.textContent = m.nombre;
+          formHorseManada.appendChild(opt);
+        });
+        formHorseManada.value = curFormManada || '';
+      }
+
+      // Modal Manada
+      function openAddManadaModal() {
+        (document.getElementById('formManadaId') as HTMLInputElement).value = '';
+        manadaForm.reset();
+        (document.getElementById('formManadaColor') as HTMLInputElement).value = '#244137';
+        manadaModalTitle.textContent = 'Nueva Manada';
+        manadaModal.classList.add('open');
+      }
+
+      function openEditManadaModal(id: string) {
+        const m = manadasList.find((manada) => manada.id === id);
+        if (!m) return;
+
+        (document.getElementById('formManadaId') as HTMLInputElement).value = m.id;
+        (document.getElementById('formManadaNombre') as HTMLInputElement).value = m.nombre;
+        (document.getElementById('formManadaColor') as HTMLInputElement).value = m.color || '#244137';
+        (document.getElementById('formManadaDescripcion') as HTMLTextAreaElement).value = m.descripcion || '';
+
+        manadaModalTitle.textContent = 'Editar Manada';
+        manadaModal.classList.add('open');
+      }
+
+      function closeManadaModal() {
+        manadaModal.classList.remove('open');
+      }
+
+      manadaForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const id = (document.getElementById('formManadaId') as HTMLInputElement).value;
+        const nombre = (document.getElementById('formManadaNombre') as HTMLInputElement).value.trim();
+        const color = (document.getElementById('formManadaColor') as HTMLInputElement).value;
+        const descripcion = (document.getElementById('formManadaDescripcion') as HTMLTextAreaElement).value.trim() || undefined;
+
+        const payload: Partial<ManadaRecord> = { nombre, color, descripcion };
+
+        if (id) {
+          // Edición
+          if (isLiveDb && supabase) {
+            const { error } = await supabase.from('manadas').update(payload).eq('id', id);
+            if (error) {
+              console.error(error);
+              showToast('Error al actualizar manada en Supabase', true);
+              return;
+            }
+          }
+          const idx = manadasList.findIndex((m) => m.id === id);
+          if (idx !== -1) manadasList[idx] = { ...manadasList[idx], ...payload };
+          showToast('Manada actualizada');
+        } else {
+          // Alta
+          const newId = isLiveDb ? undefined : `local-manada-${Date.now()}`;
+          if (isLiveDb && supabase) {
+            const { data, error } = await supabase.from('manadas').insert([payload]).select().single();
+            if (error) {
+              console.error(error);
+              showToast('Error al guardar manada en Supabase', true);
+              return;
+            }
+            if (data) manadasList.push(data);
+          } else {
+            const newManada = { ...payload, id: newId!, created_at: new Date().toISOString() } as ManadaRecord;
+            manadasList.push(newManada);
+          }
+          showToast('Nueva manada creada');
+        }
+
+        if (!isLiveDb) saveLocalManadas();
+
+        closeManadaModal();
+        updateManadaSelectDropdowns();
+        renderManadasBoard();
+        renderHorsesGrid();
+      });
+
+      async function deleteManada(id: string) {
+        const m = manadasList.find((manada) => manada.id === id);
+        if (!m) return;
+
+        const horsesInManada = horsesList.filter((h) => h.manada_id === id);
+        if (horsesInManada.length > 0) {
+          alert(`No se puede eliminar la manada "${m.nombre}" porque tiene ${horsesInManada.length} caballo(s) asignado(s). Primero movelos a otra manada.`);
+          return;
+        }
+
+        if (!confirm(`¿Eliminar la manada "${m.nombre}"?`)) return;
+
+        if (isLiveDb && supabase) {
+          const { error } = await supabase.from('manadas').delete().eq('id', id);
+          if (error) {
+            console.error(error);
+            showToast('Error al eliminar en Supabase', true);
+            return;
+          }
+        }
+
+        manadasList = manadasList.filter((manada) => manada.id !== id);
+        if (!isLiveDb) saveLocalManadas();
+
+        updateManadaSelectDropdowns();
+        renderManadasBoard();
+        renderHorsesGrid();
+        showToast('Manada eliminada');
+      }
+
+      // Mover caballo a otra manada de forma rápida
+      async function quickMoveHorseManada(horseId: string, newManadaId: string) {
+        const horse = horsesList.find((h) => h.id === horseId);
+        if (!horse) return;
+
+        const targetManada = manadasList.find((m) => m.id === newManadaId);
+        const manada_id = newManadaId || null;
+        const manada_nombre = targetManada ? targetManada.nombre : null;
+
+        if (isLiveDb && supabase) {
+          try {
+            const { error } = await supabase
+              .from('caballos')
+              .update({ manada_id, manada_nombre })
+              .eq('id', horseId);
+            if (error) throw error;
+          } catch (err) {
+            console.error('Error reasignando manada:', err);
+            showToast('Error de sincronización al mover de manada', true);
+            return;
+          }
+        }
+
+        horse.manada_id = manada_id || undefined;
+        horse.manada_nombre = manada_nombre || undefined;
+        if (!isLiveDb) saveLocalHorses();
+
+        renderManadasBoard();
+        renderHorsesGrid();
+        showToast(`${horse.nombre} reasignado a ${targetManada ? targetManada.nombre : 'Sin manada'}`);
+      }
+
+      // Render del Tablero Visual de Manadas
+      function renderManadasBoard() {
+        const columnsData: Array<{ id: string; nombre: string; color: string; descripcion?: string; horses: HorseRecord[] }> = [
+          ...manadasList.map((m) => ({
+            id: m.id,
+            nombre: m.nombre,
+            color: m.color || '#244137',
+            descripcion: m.descripcion,
+            horses: horsesList.filter((h) => h.manada_id === m.id),
+          })),
+          {
+            id: 'unassigned',
+            nombre: 'Sin Manada Asignada',
+            color: '#868e96',
+            descripcion: 'Caballos pendientes de agrupar.',
+            horses: horsesList.filter((h) => !h.manada_id),
+          },
+        ];
+
+        manadasBoardContainer.innerHTML = columnsData
+          .map((col) => {
+            const isUnassigned = col.id === 'unassigned';
+            const horsesCards = col.horses
+              .map((horse) => {
+                const activeSponsorsCount = sponsors.filter(
+                  (s) => s.caballo_id === horse.id && s.estado === 'activo'
+                ).length;
+
+                // Opciones del selector de movimiento rápido
+                const moveOptions = [
+                  `<option value="">Sin manada</option>`,
+                  ...manadasList.map(
+                    (m) => `<option value="${m.id}" ${m.id === horse.manada_id ? 'selected' : ''}>${escapeHtml(m.nombre)}</option>`
+                  ),
+                ].join('');
+
+                return `
+                  <article class="manada-horse-card" data-horse-id="${horse.id}">
+                    <div class="manada-horse-header">
+                      <img
+                        src="${horse.foto || '/placeholders/horse-01.svg'}"
+                        alt="${escapeHtml(horse.nombre)}"
+                        class="manada-horse-thumb"
+                        onerror="this.src='/placeholders/horse-01.svg'"
+                      />
+                      <div style="flex: 1; min-width: 0;">
+                        <h4 class="manada-horse-name">${escapeHtml(horse.nombre)}</h4>
+                        <span class="status-tag ${horse.estado}" style="font-size: 0.68rem; padding: 0.1rem 0.4rem;">${horse.estado}</span>
+                      </div>
+                      <div class="row-actions">
+                        <button type="button" class="btn-icon btn-edit-horse" data-id="${horse.id}" title="Editar caballo">✏️</button>
+                      </div>
+                    </div>
+
+                    <div class="manada-horse-footer">
+                      <span class="sponsor-count-pill ${activeSponsorsCount === 0 ? 'empty' : ''}" style="font-size: 0.72rem; padding: 0.15rem 0.5rem;">
+                        👥 ${activeSponsorsCount}
+                      </span>
+
+                      <div style="display: flex; align-items: center; gap: 0.25rem;">
+                        <span style="font-size: 0.72rem; color: var(--muted);">Mover:</span>
+                        <select class="move-manada-select" data-horse-id="${horse.id}">
+                          ${moveOptions}
+                        </select>
+                      </div>
+                    </div>
+                  </article>
+                `;
+              })
+              .join('');
+
+            return `
+              <div class="manada-column" style="border-top: 4px solid ${col.color};">
+                <div class="manada-column-header">
+                  <div class="manada-header-info">
+                    <span class="manada-color-dot" style="background: ${col.color};"></span>
+                    <h3 class="manada-column-title">${escapeHtml(col.nombre)}</h3>
+                    <span class="manada-column-badge">${col.horses.length}</span>
+                  </div>
+
+                  ${
+                    !isUnassigned
+                      ? `
+                        <div class="row-actions">
+                          <button type="button" class="btn-icon btn-edit-manada" data-id="${col.id}" title="Editar manada">✏️</button>
+                          <button type="button" class="btn-icon delete btn-delete-manada" data-id="${col.id}" title="Eliminar manada">🗑️</button>
+                        </div>
+                      `
+                      : ''
+                  }
+                </div>
+
+                <div class="manada-column-body">
+                  ${
+                    col.horses.length > 0
+                      ? horsesCards
+                      : `<div style="text-align: center; color: var(--muted); font-size: 0.8rem; padding: 1.5rem 0.5rem; font-style: italic;">No hay caballos en este grupo.</div>`
+                  }
+                </div>
+              </div>
+            `;
+          })
+          .join('');
+
+        // Listeners en el tablero de manadas
+        document.querySelectorAll('.move-manada-select').forEach((sel) => {
+          sel.addEventListener('change', (e) => {
+            const selectEl = e.currentTarget as HTMLSelectElement;
+            const horseId = selectEl.getAttribute('data-horse-id')!;
+            quickMoveHorseManada(horseId, selectEl.value);
+          });
+        });
+
+        document.querySelectorAll('.btn-edit-manada').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const id = (e.currentTarget as HTMLElement).getAttribute('data-id')!;
+            openEditManadaModal(id);
+          });
+        });
+
+        document.querySelectorAll('.btn-delete-manada').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const id = (e.currentTarget as HTMLElement).getAttribute('data-id')!;
+            deleteManada(id);
+          });
+        });
+
+        document.querySelectorAll('.btn-edit-horse').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const id = (e.currentTarget as HTMLElement).getAttribute('data-id')!;
+            openEditHorseModal(id);
+          });
+        });
+      }
+
+      // ==========================================
       // GESTIÓN DE CABALLOS (LA MANADA DE 14)
       // ==========================================
       const INITIAL_HORSES = [
@@ -615,7 +1108,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
             } else if (data && data.length > 0) {
               horsesList = data;
             } else {
-              // Si la tabla en Supabase está vacía, sembramos automáticamente los 14 caballos
               try {
                 const { data: seeded, error: seedError } = await supabase
                   .from('caballos')
@@ -639,6 +1131,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         }
 
         updateHorseSelectDropdowns();
+        renderManadasBoard();
         renderHorsesGrid();
         updateBadges();
       }
@@ -662,10 +1155,14 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       }
 
       function updateHorseSelectDropdowns() {
-        // Dropdown en el filtro de la tabla
+        // Dropdown en el filtro de la tabla de padrinos (Ordenado A-Z)
+        const sortedHorses = [...horsesList].sort((a, b) =>
+          a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
+        );
+
         const currentSelectedFilter = filterHorse.value;
         filterHorse.innerHTML = '<option value="all">Todos los caballos</option>';
-        horsesList.forEach((h) => {
+        sortedHorses.forEach((h) => {
           const opt = document.createElement('option');
           opt.value = h.id;
           opt.textContent = `${h.nombre}`;
@@ -673,29 +1170,27 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         });
         filterHorse.value = currentSelectedFilter || 'all';
 
-        // Dropdown en el modal de Padrino
-        const currentSelectedForm = formCaballoId.value;
-        formCaballoId.innerHTML = '<option value="">Seleccionar caballo...</option>';
-        horsesList.forEach((h) => {
-          const opt = document.createElement('option');
-          opt.value = h.id;
-          opt.setAttribute('data-name', h.nombre);
-          opt.textContent = `${h.nombre}`;
-          formCaballoId.appendChild(opt);
-        });
-        formCaballoId.value = currentSelectedForm || '';
+        totalHorsesBadge.textContent = String(horsesList.length);
       }
 
       function renderHorsesGrid() {
         const query = (searchHorsesInput.value || '').toLowerCase().trim();
         const status = filterHorseStatus.value;
+        const selectedManada = filterHorseManadaSelect.value;
 
         const filtered = horsesList.filter((h) => {
           const matchesQuery =
             h.nombre.toLowerCase().includes(query) ||
             (h.descripcion && h.descripcion.toLowerCase().includes(query));
           const matchesStatus = status === 'all' || h.estado === status;
-          return matchesQuery && matchesStatus;
+          const matchesManada =
+            selectedManada === 'all'
+              ? true
+              : selectedManada === 'none'
+                ? !h.manada_id
+                : h.manada_id === selectedManada;
+
+          return matchesQuery && matchesStatus && matchesManada;
         });
 
         if (filtered.length === 0) {
@@ -713,6 +1208,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
             ).length;
 
             const photoSrc = horse.foto || '/placeholders/horse-01.svg';
+            const manadaObj = manadasList.find((m) => m.id === horse.manada_id);
 
             return `
               <article class="horse-admin-card" data-id="${horse.id}">
@@ -728,7 +1224,14 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
                   </div>
                 </div>
                 <div class="horse-card-body">
-                  <h3 class="horse-card-title">${escapeHtml(horse.nombre)}</h3>
+                  <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.35rem;">
+                    <h3 class="horse-card-title">${escapeHtml(horse.nombre)}</h3>
+                    ${
+                      manadaObj
+                        ? `<span class="manada-tag" style="border-left: 3px solid ${manadaObj.color || '#244137'};">${escapeHtml(manadaObj.nombre)}</span>`
+                        : `<span class="manada-tag" style="color: var(--muted);">Sin manada</span>`
+                    }
+                  </div>
                   <p class="horse-card-desc">${escapeHtml(horse.descripcion || 'Sin descripción cargada.')}</p>
                   
                   <div class="horse-card-meta">
@@ -763,7 +1266,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           })
           .join('');
 
-        // Listeners para acciones de caballos
         document.querySelectorAll('.btn-edit-horse').forEach((btn) => {
           btn.addEventListener('click', (e) => {
             const id = (e.currentTarget as HTMLElement).getAttribute('data-id')!;
@@ -797,8 +1299,8 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         imageUploadPlaceholder.style.display = 'flex';
         uploadStatusText.style.display = 'none';
         formHorseFoto.value = '/placeholders/horse-01.svg';
+        formHorseManada.value = '';
         (document.getElementById('formHorseEstado') as HTMLSelectElement).value = 'disponible';
-        (document.getElementById('formHorseDestacado') as HTMLSelectElement).value = 'false';
         horseModalTitle.textContent = 'Nuevo Caballo';
         horseModal.classList.add('open');
       }
@@ -810,8 +1312,8 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         (document.getElementById('formHorseId') as HTMLInputElement).value = horse.id;
         (document.getElementById('formHorseNombre') as HTMLInputElement).value = horse.nombre;
         formHorseFoto.value = horse.foto || '/placeholders/horse-01.svg';
+        formHorseManada.value = horse.manada_id || '';
         (document.getElementById('formHorseEstado') as HTMLSelectElement).value = horse.estado || 'disponible';
-        (document.getElementById('formHorseDestacado') as HTMLSelectElement).value = horse.destacado ? 'true' : 'false';
         (document.getElementById('formHorseDescripcion') as HTMLTextAreaElement).value = horse.descripcion || '';
 
         selectedHorseFile = null;
@@ -840,11 +1342,12 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         const id = (document.getElementById('formHorseId') as HTMLInputElement).value;
         const nombre = (document.getElementById('formHorseNombre') as HTMLInputElement).value.trim();
         let foto = formHorseFoto.value.trim() || '/placeholders/horse-01.svg';
+        const manada_id = formHorseManada.value || null;
+        const targetManada = manadasList.find((m) => m.id === manada_id);
+        const manada_nombre = targetManada ? targetManada.nombre : null;
         const estado = (document.getElementById('formHorseEstado') as HTMLSelectElement).value as any;
-        const destacado = (document.getElementById('formHorseDestacado') as HTMLSelectElement).value === 'true';
         const descripcion = (document.getElementById('formHorseDescripcion') as HTMLTextAreaElement).value.trim() || undefined;
 
-        // Si se seleccionó una foto del celular o compu, se sube directo a Supabase Storage
         if (selectedHorseFile) {
           if (isLiveDb && supabase) {
             uploadStatusText.style.display = 'block';
@@ -864,10 +1367,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
                   upsert: true,
                 });
 
-              if (uploadError) {
-                console.error('Error subiendo foto:', uploadError);
-                throw uploadError;
-              }
+              if (uploadError) throw uploadError;
 
               const { data: publicUrlData } = supabase.storage
                 .from('caballos')
@@ -876,7 +1376,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
               foto = publicUrlData.publicUrl;
             } catch (uploadErr: any) {
               console.error(uploadErr);
-              showToast(`Error al subir imagen: ${uploadErr.message || 'Verificá el bucket en Supabase'}`, true);
+              showToast(`Error al subir imagen: ${uploadErr.message || 'Verificá el bucket'}`, true);
               btnHorseModalSave.disabled = false;
               uploadStatusText.style.display = 'none';
               return;
@@ -885,7 +1385,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
               uploadStatusText.style.display = 'none';
             }
           } else {
-            // Modo local: DataURL
             const reader = new FileReader();
             foto = await new Promise((resolve) => {
               reader.onload = () => resolve(reader.result as string);
@@ -898,12 +1397,12 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           nombre,
           foto,
           estado,
-          destacado,
+          manada_id: manada_id || undefined,
+          manada_nombre: manada_nombre || undefined,
           descripcion,
         };
 
         if (id) {
-          // Edición
           if (isLiveDb && supabase) {
             const { error } = await supabase.from('caballos').update(payload).eq('id', id);
             if (error) {
@@ -916,7 +1415,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           if (idx !== -1) horsesList[idx] = { ...horsesList[idx], ...payload };
           showToast('Caballo actualizado con éxito');
         } else {
-          // Alta
           const newId = isLiveDb ? undefined : `local-horse-${Date.now()}`;
           if (isLiveDb && supabase) {
             const { data, error } = await supabase.from('caballos').insert([payload]).select().single();
@@ -930,13 +1428,14 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
             const newHorse = { ...payload, id: newId!, created_at: new Date().toISOString() } as HorseRecord;
             horsesList.unshift(newHorse);
           }
-          showToast('Nuevo caballo registrado en la manada');
+          showToast('Nuevo caballo registrado');
         }
 
         if (!isLiveDb) saveLocalHorses();
 
         closeHorseModal();
         updateHorseSelectDropdowns();
+        renderManadasBoard();
         renderHorsesGrid();
         updateBadges();
       });
@@ -966,10 +1465,112 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         if (!isLiveDb) saveLocalHorses();
 
         updateHorseSelectDropdowns();
+        renderManadasBoard();
         renderHorsesGrid();
         updateBadges();
         showToast('Caballo eliminado');
       }
+
+      // ==========================================
+      // SELECTOR MÚLTIPLE DE CABALLOS (A-Z + BÚSQUEDA)
+      // ==========================================
+      function renderHorsePicker(searchQuery = '') {
+        const query = searchQuery.toLowerCase().trim();
+
+        // 1. Ordenar alfabéticamente A-Z
+        const sortedHorses = [...horsesList].sort((a, b) =>
+          a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
+        );
+
+        // 2. Filtrar por búsqueda
+        const filteredHorses = sortedHorses.filter(
+          (h) => h.nombre.toLowerCase().includes(query) || (h.manada_nombre && h.manada_nombre.toLowerCase().includes(query))
+        );
+
+        // 3. Renderizar chips de seleccionados
+        if (selectedHorseIds.size === 0) {
+          pickerSelectedSummary.innerHTML = `<span class="picker-hint">Ningún caballo seleccionado todavía. Elegí uno o varios de la lista:</span>`;
+        } else {
+          const chipsHtml = Array.from(selectedHorseIds)
+            .map((hId) => {
+              const hObj = horsesList.find((h) => h.id === hId);
+              const name = hObj ? hObj.nombre : hId;
+              return `
+                <span class="picker-chip">
+                  <span>${escapeHtml(name)}</span>
+                  <button type="button" class="picker-chip-remove" data-id="${hId}" title="Quitar">✕</button>
+                </span>
+              `;
+            })
+            .join('');
+
+          pickerSelectedSummary.innerHTML = `
+            ${chipsHtml}
+            <span style="font-size: 0.72rem; color: var(--muted); margin-left: auto;">${selectedHorseIds.size} ${selectedHorseIds.size === 1 ? 'caballo seleccionado' : 'caballos seleccionados'}</span>
+          `;
+        }
+
+        // 4. Renderizar lista scrolleable
+        if (filteredHorses.length === 0) {
+          pickerHorsesList.innerHTML = `<div style="padding: 1rem; text-align: center; color: var(--muted); font-size: 0.85rem;">No se encontraron caballos con ese nombre.</div>`;
+          return;
+        }
+
+        pickerHorsesList.innerHTML = filteredHorses
+          .map((h) => {
+            const isSelected = selectedHorseIds.has(h.id);
+            const manadaObj = manadasList.find((m) => m.id === h.manada_id);
+
+            return `
+              <div class="picker-horse-row ${isSelected ? 'selected' : ''}" data-id="${h.id}">
+                <div class="picker-horse-left">
+                  <img
+                    src="${h.foto || '/placeholders/horse-01.svg'}"
+                    alt="${escapeHtml(h.nombre)}"
+                    class="picker-horse-thumb"
+                    onerror="this.src='/placeholders/horse-01.svg'"
+                  />
+                  <div>
+                    <span class="picker-horse-name">${escapeHtml(h.nombre)}</span>
+                    ${manadaObj ? `<span class="picker-horse-manada">${escapeHtml(manadaObj.nombre)}</span>` : ''}
+                  </div>
+                </div>
+
+                <div class="picker-check-indicator">
+                  ${isSelected ? '✓' : ''}
+                </div>
+              </div>
+            `;
+          })
+          .join('');
+
+        // Listeners para filas de caballos
+        pickerHorsesList.querySelectorAll('.picker-horse-row').forEach((row) => {
+          row.addEventListener('click', () => {
+            const id = row.getAttribute('data-id')!;
+            if (selectedHorseIds.has(id)) {
+              selectedHorseIds.delete(id);
+            } else {
+              selectedHorseIds.add(id);
+            }
+            renderHorsePicker(pickerHorseSearch.value);
+          });
+        });
+
+        // Listeners para quitar chips
+        pickerSelectedSummary.querySelectorAll('.picker-chip-remove').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = (e.currentTarget as HTMLElement).getAttribute('data-id')!;
+            selectedHorseIds.delete(id);
+            renderHorsePicker(pickerHorseSearch.value);
+          });
+        });
+      }
+
+      pickerHorseSearch.addEventListener('input', () => {
+        renderHorsePicker(pickerHorseSearch.value);
+      });
 
       // ==========================================
       // GESTIÓN DE PADRINOS (CARGA Y CRUD)
@@ -1045,6 +1646,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       function renderTable() {
         const query = searchInput.value.toLowerCase().trim();
         const selectedHorse = filterHorse.value;
+        const selectedManada = filterManada.value;
         const selectedStatus = filterStatus.value;
 
         const filtered = sponsors.filter((sp) => {
@@ -1056,7 +1658,18 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           const matchesHorse = selectedHorse === 'all' || sp.caballo_id === selectedHorse;
           const matchesStatus = selectedStatus === 'all' || sp.estado === selectedStatus;
 
-          return matchesQuery && matchesHorse && matchesStatus;
+          // Filtro por manada
+          let matchesManada = true;
+          if (selectedManada !== 'all') {
+            const matchedHorse = horsesList.find((h) => h.id === sp.caballo_id);
+            if (selectedManada === 'none') {
+              matchesManada = !matchedHorse || !matchedHorse.manada_id;
+            } else {
+              matchesManada = !!matchedHorse && matchedHorse.manada_id === selectedManada;
+            }
+          }
+
+          return matchesQuery && matchesHorse && matchesStatus && matchesManada;
         });
 
         if (filtered.length === 0) {
@@ -1097,7 +1710,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
             );
             const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${waText}` : null;
 
-            // Datos del caballo (foto miniatura y nombre)
+            // Datos del caballo (foto miniatura y nombre abajo)
             const matchedHorse = horsesList.find(
               (h) =>
                 h.id === sp.caballo_id ||
@@ -1228,7 +1841,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       function updateMetrics() {
         const activeSponsors = sponsors.filter((s) => s.estado === 'activo');
         document.getElementById('metricActiveSponsors')!.textContent = String(activeSponsors.length);
-        document.getElementById('metricTotalSponsors')!.textContent = `Total registrados: ${sponsors.length}`;
+        document.getElementById('metricTotalSponsors')!.textContent = `Total apadrinamientos: ${sponsors.length}`;
 
         const uniqueHorses = new Set(activeSponsors.map((s) => s.caballo_id));
         document.getElementById('metricSponsoredHorses')!.textContent = String(uniqueHorses.size);
@@ -1258,6 +1871,12 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         sponsorForm.reset();
         (document.getElementById('formFechaInicio') as HTMLInputElement).value = new Date().toISOString().split('T')[0];
         modalTitle.textContent = 'Nuevo Padrino';
+
+        // Resetear selección múltiple de caballos
+        selectedHorseIds.clear();
+        pickerHorseSearch.value = '';
+        renderHorsePicker();
+
         sponsorModal.classList.add('open');
       }
 
@@ -1267,7 +1886,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
         (document.getElementById('formSponsorId') as HTMLInputElement).value = sp.id;
         (document.getElementById('formNombre') as HTMLInputElement).value = sp.nombre;
-        (document.getElementById('formCaballoId') as HTMLSelectElement).value = sp.caballo_id;
         (document.getElementById('formFechaInicio') as HTMLInputElement).value = sp.fecha_inicio || '';
         (document.getElementById('formEstado') as HTMLSelectElement).value = sp.estado;
         (document.getElementById('formTelefono') as HTMLInputElement).value = sp.telefono || '';
@@ -1275,6 +1893,14 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         (document.getElementById('formMonto') as HTMLInputElement).value = sp.monto ? String(sp.monto) : '';
         (document.getElementById('formMoneda') as HTMLSelectElement).value = sp.moneda || 'ARS';
         (document.getElementById('formNotas') as HTMLTextAreaElement).value = sp.notas || '';
+
+        // En edición, cargamos el caballo actual en la selección
+        selectedHorseIds.clear();
+        if (sp.caballo_id) {
+          selectedHorseIds.add(sp.caballo_id);
+        }
+        pickerHorseSearch.value = '';
+        renderHorsePicker();
 
         modalTitle.textContent = 'Editar Padrino';
         sponsorModal.classList.add('open');
@@ -1287,25 +1913,40 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       sponsorForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const id = (document.getElementById('formSponsorId') as HTMLInputElement).value;
-        const caballoSelect = document.getElementById('formCaballoId') as HTMLSelectElement;
-        const selectedOpt = caballoSelect.options[caballoSelect.selectedIndex];
-        const caballoNombre = selectedOpt.getAttribute('data-name') || selectedOpt.text;
+        if (selectedHorseIds.size === 0) {
+          alert('Por favor seleccioná al menos un caballo para apadrinar.');
+          return;
+        }
 
-        const payload: Partial<Sponsor> = {
-          nombre: (document.getElementById('formNombre') as HTMLInputElement).value.trim(),
-          caballo_id: caballoSelect.value,
-          caballo_nombre: caballoNombre,
-          fecha_inicio: (document.getElementById('formFechaInicio') as HTMLInputElement).value,
-          estado: (document.getElementById('formEstado') as HTMLSelectElement).value as any,
-          telefono: (document.getElementById('formTelefono') as HTMLInputElement).value.trim() || undefined,
-          email: (document.getElementById('formEmail') as HTMLInputElement).value.trim() || undefined,
-          monto: Number((document.getElementById('formMonto') as HTMLInputElement).value) || undefined,
-          moneda: (document.getElementById('formMoneda') as HTMLSelectElement).value,
-          notas: (document.getElementById('formNotas') as HTMLTextAreaElement).value.trim() || undefined,
-        };
+        const id = (document.getElementById('formSponsorId') as HTMLInputElement).value;
+        const nombre = (document.getElementById('formNombre') as HTMLInputElement).value.trim();
+        const fecha_inicio = (document.getElementById('formFechaInicio') as HTMLInputElement).value;
+        const estado = (document.getElementById('formEstado') as HTMLSelectElement).value as any;
+        const telefono = (document.getElementById('formTelefono') as HTMLInputElement).value.trim() || undefined;
+        const email = (document.getElementById('formEmail') as HTMLInputElement).value.trim() || undefined;
+        const monto = Number((document.getElementById('formMonto') as HTMLInputElement).value) || undefined;
+        const moneda = (document.getElementById('formMoneda') as HTMLSelectElement).value;
+        const notas = (document.getElementById('formNotas') as HTMLTextAreaElement).value.trim() || undefined;
 
         if (id) {
+          // Edición de un registro existente
+          const firstSelectedHorseId = Array.from(selectedHorseIds)[0];
+          const matchedHorse = horsesList.find((h) => h.id === firstSelectedHorseId);
+          const caballo_nombre = matchedHorse ? matchedHorse.nombre : 'Caballo';
+
+          const payload: Partial<Sponsor> = {
+            nombre,
+            caballo_id: firstSelectedHorseId,
+            caballo_nombre,
+            fecha_inicio,
+            estado,
+            telefono,
+            email,
+            monto,
+            moneda,
+            notas,
+          };
+
           if (isLiveDb && supabase) {
             const { error } = await supabase.from('padrinos').update(payload).eq('id', id);
             if (error) {
@@ -1318,20 +1959,49 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
           if (idx !== -1) sponsors[idx] = { ...sponsors[idx], ...payload };
           showToast('Padrino actualizado con éxito');
         } else {
-          const newId = isLiveDb ? undefined : `local-${Date.now()}`;
+          // Alta: Soporta apadrinar MÚLTIPLES caballos simultáneamente
+          const horseIdsArray = Array.from(selectedHorseIds);
+          const newSponsorsToInsert: Array<Omit<Sponsor, 'id'>> = horseIdsArray.map((horseId) => {
+            const matchedHorse = horsesList.find((h) => h.id === horseId);
+            return {
+              nombre,
+              caballo_id: horseId,
+              caballo_nombre: matchedHorse ? matchedHorse.nombre : 'Caballo',
+              fecha_inicio,
+              estado,
+              telefono,
+              email,
+              monto,
+              moneda,
+              notas,
+            };
+          });
+
           if (isLiveDb && supabase) {
-            const { data, error } = await supabase.from('padrinos').insert([payload]).select().single();
+            const { data, error } = await supabase.from('padrinos').insert(newSponsorsToInsert).select();
             if (error) {
               console.error(error);
               showToast('Error al guardar en Supabase', true);
               return;
             }
-            if (data) sponsors.unshift(data);
+            if (data && data.length > 0) {
+              sponsors.unshift(...data);
+            }
           } else {
-            const newSponsor = { ...payload, id: newId!, created_at: new Date().toISOString() } as Sponsor;
-            sponsors.unshift(newSponsor);
+            newSponsorsToInsert.forEach((sp, i) => {
+              sponsors.unshift({
+                ...sp,
+                id: `local-${Date.now()}-${i}`,
+                created_at: new Date().toISOString(),
+              });
+            });
           }
-          showToast('Nuevo padrino registrado');
+
+          showToast(
+            horseIdsArray.length > 1
+              ? `Se registraron los apadrinamientos para los ${horseIdsArray.length} caballos`
+              : 'Nuevo padrino registrado'
+          );
         }
 
         if (!isLiveDb) saveLocalStorage();
@@ -1344,7 +2014,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
       async function deleteSponsor(id: string) {
         const sp = sponsors.find((s) => s.id === id);
-        if (!confirm(`¿Eliminar a ${sp?.nombre || 'este padrino'} de la planilla?`)) return;
+        if (!confirm(`¿Eliminar el apadrinamiento de ${sp?.nombre || 'este padrino'} para ${sp?.caballo_nombre || 'el caballo'}?`)) return;
 
         if (isLiveDb && supabase) {
           const { error } = await supabase.from('padrinos').delete().eq('id', id);
@@ -1363,7 +2033,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         renderTable();
         updateMetrics();
         updateBadges();
-        showToast('Padrino eliminado');
+        showToast('Apadrinamiento eliminado');
       }
 
       // Exportar a CSV / Excel
@@ -1425,9 +2095,13 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
       // Configurar Listeners generales
       function setupEventListeners() {
-        // Pestañas
+        // Pestañas Principales
         tabBtnSponsors.addEventListener('click', () => switchTab('sponsors'));
         tabBtnHorses.addEventListener('click', () => switchTab('horses'));
+
+        // Subnavegación de caballos
+        subnavBtnManadas.addEventListener('click', () => switchHorsesSubView('manadas'));
+        subnavBtnAllHorses.addEventListener('click', () => switchHorsesSubView('all'));
 
         // Padrinos Modales
         btnOpenAddModal.addEventListener('click', openAddModal);
@@ -1444,6 +2118,14 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         btnHorseModalCancel.addEventListener('click', closeHorseModal);
         horseModal.addEventListener('click', (e) => {
           if (e.target === horseModal) closeHorseModal();
+        });
+
+        // Manadas Modales
+        btnOpenAddManadaModal.addEventListener('click', openAddManadaModal);
+        btnManadaModalClose.addEventListener('click', closeManadaModal);
+        btnManadaModalCancel.addEventListener('click', closeManadaModal);
+        manadaModal.addEventListener('click', (e) => {
+          if (e.target === manadaModal) closeManadaModal();
         });
 
         // Subida de imagen y vista previa inmediata
@@ -1464,10 +2146,12 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         // Búsquedas y filtros
         searchInput.addEventListener('input', renderTable);
         filterHorse.addEventListener('change', renderTable);
+        filterManada.addEventListener('change', renderTable);
         filterStatus.addEventListener('change', renderTable);
 
         searchHorsesInput.addEventListener('input', renderHorsesGrid);
         filterHorseStatus.addEventListener('change', renderHorsesGrid);
+        filterHorseManadaSelect.addEventListener('change', renderHorsesGrid);
 
         btnExportCsv.addEventListener('click', exportToCsv);
       }

@@ -1,6 +1,14 @@
 export type SponsorStatus = 'activo' | 'pausado' | 'baja';
 export type HorseStatus = 'disponible' | 'pausado' | 'oculto';
 
+export interface ManadaRecord {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  color?: string;
+  created_at?: string;
+}
+
 export interface Sponsor {
   id: string;
   nombre: string;
@@ -24,6 +32,8 @@ export interface HorseRecord {
   descripcion?: string;
   estado: HorseStatus;
   destacado?: boolean;
+  manada_id?: string;
+  manada_nombre?: string;
   created_at?: string;
 }
 

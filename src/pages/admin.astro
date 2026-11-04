@@ -1,5 +1,4 @@
 ---
-import { horses as staticHorses } from '@/data/horses';
 import '@/styles/global.css';
 import '@/styles/admin.css';
 
@@ -505,8 +504,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
       let manadasList: ManadaRecord[] = [];
       let reports: MonthlyReportRecord[] = [];
       let isLiveDb = isSupabaseConfigured;
-      let activeTab: 'sponsors' | 'horses' = 'sponsors';
-      let horsesViewMode: 'manadas' | 'all' = 'manadas';
 
       // Estado del selector de caballos en el modal de Padrino
       let selectedHorseIds: Set<string> = new Set();
@@ -638,7 +635,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
       // Cambio de pestañas principales (Padrinos vs Caballos)
       function switchTab(tab: 'sponsors' | 'horses') {
-        activeTab = tab;
         if (tab === 'sponsors') {
           tabBtnSponsors.classList.add('active');
           tabBtnHorses.classList.remove('active');
@@ -660,7 +656,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
       // Cambio de sub-vista en Caballos (Manadas vs Todos)
       function switchHorsesSubView(mode: 'manadas' | 'all') {
-        horsesViewMode = mode;
         if (mode === 'manadas') {
           subnavBtnManadas.classList.add('active');
           subnavBtnAllHorses.classList.remove('active');
@@ -775,16 +770,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         manadasList = loadedManadas;
         saveLocalManadas();
         updateManadaSelectDropdowns();
-      }
-
-      function loadLocalManadas() {
-        const local = localStorage.getItem('almas_manadas');
-        if (local) {
-          manadasList = JSON.parse(local);
-        } else {
-          manadasList = DEFAULT_MANADAS;
-          saveLocalManadas();
-        }
       }
 
       function saveLocalManadas() {
@@ -1172,7 +1157,7 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
               try {
                 const { data: seeded, error: seedError } = await supabase
                   .from('caballos')
-                  .insert(toInsert)
+                  .insert(toInsert as any)
                   .select();
                 if (!seedError && seeded && seeded.length > 0) {
                   loadedHorses = seeded;
@@ -1198,16 +1183,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
         renderManadasBoard();
         renderHorsesGrid();
         updateBadges();
-      }
-
-      function loadLocalHorses() {
-        const local = localStorage.getItem('almas_horses');
-        if (local) {
-          horsesList = JSON.parse(local);
-        } else {
-          horsesList = getFallbackHorses();
-          saveLocalHorses();
-        }
       }
 
       function saveLocalHorses() {
@@ -1758,13 +1733,6 @@ const currentMonth = new Date().getMonth() + 1; // 1-12
 
         renderTable();
         updateMetrics();
-      }
-
-      function loadLocalStorageData() {
-        const localSponsors = localStorage.getItem('almas_sponsors');
-        sponsors = localSponsors ? JSON.parse(localSponsors) : [];
-        const localReports = localStorage.getItem(`almas_reports_${activeYear}`);
-        reports = localReports ? JSON.parse(localReports) : [];
       }
 
       function saveLocalStorage() {

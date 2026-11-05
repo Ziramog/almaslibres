@@ -378,18 +378,51 @@
 
 .table-wrapper {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 260px);
+  min-height: 380px;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(36, 65, 55, 0.25) transparent;
+}
+
+.table-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(36, 65, 55, 0.25);
+  border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: rgba(36, 65, 55, 0.4);
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .padrinos-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   text-align: left;
   font-size: 0.88rem;
   min-width: 1080px;
 }
 
+.padrinos-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
 .padrinos-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   background: #f5f1e8;
   color: var(--green);
   font-weight: 700;
@@ -399,6 +432,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
 }
 
 .padrinos-table th.center,
@@ -422,6 +456,10 @@
   padding: 0.85rem 0.85rem;
   border-bottom: 1px solid var(--line);
   vertical-align: middle;
+}
+
+.padrinos-table tbody tr {
+  background: var(--warm-white);
 }
 
 .padrinos-table tbody tr:hover {
@@ -1193,7 +1231,17 @@
   }
 
   /* Columna fija de Padrino en mobile para no perder de vista a quién se le tilda */
-  .padrinos-table th:first-child,
+  .padrinos-table th:first-child {
+    position: sticky;
+    left: 0;
+    top: 0;
+    z-index: 25;
+    background: #f5f1e8;
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.08);
+    min-width: 135px;
+    max-width: 150px;
+  }
+
   .padrinos-table td:first-child {
     position: sticky;
     left: 0;
@@ -1202,10 +1250,6 @@
     box-shadow: 2px 0 6px rgba(0,0,0,0.06);
     min-width: 135px;
     max-width: 150px;
-  }
-
-  .padrinos-table th:first-child {
-    background: #f5f1e8;
   }
 
   /* Botones táctiles grandes para los 12 meses (fáciles de tocar con el pulgar) */

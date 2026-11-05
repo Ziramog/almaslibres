@@ -1296,6 +1296,8 @@
   }
 
   #btnExportCsv,
+  #btnImportCsv,
+  #btnOpenBackupModal,
   #btnLogout,
   #btnOpenAddHorseModal,
   #btnOpenAddModal {

@@ -94,7 +94,11 @@ const supabaseAnonKey =
           <button type="button" id="btnExportCsv" class="btn-secondary" title="Descargar como Excel/CSV">
             <span>📥</span> Exportar CSV
           </button>
-          <button type="button" id="btnOpenBackupModal" class="btn-secondary" title="Diagnóstico y copia de seguridad de datos">
+          <button type="button" id="btnImportCsv" class="btn-secondary" title="Importar planilla Excel/CSV de padrinos y tildes">
+            <span>📤</span> Importar CSV
+          </button>
+          <input type="file" id="inputImportCsv" accept=".csv,text/csv,text/plain" style="display: none;" />
+          <button type="button" id="btnOpenBackupModal" class="btn-secondary" title="Diagnóstico, conexión Supabase y copia de seguridad">
             <span>💾</span> Respaldo
           </button>
           <button type="button" id="btnOpenAddHorseModal" class="btn-secondary" title="Agregar un caballo">
@@ -504,20 +508,46 @@ const supabaseAnonKey =
     <div id="backupModal" class="modal-overlay">
       <div class="modal-window" style="max-width: 620px;">
         <div class="modal-header">
-          <h2><span>💾</span> Estado de Datos y Copia de Seguridad</h2>
+          <h2><span>💾</span> Estado de Datos, Conexión y Respaldo</h2>
           <button type="button" id="btnBackupModalClose" class="btn-icon" title="Cerrar">✕</button>
         </div>
 
         <div class="modal-body" style="display: flex; flex-direction: column; gap: 1.25rem;">
           <div style="background: var(--bg-alt); padding: 1rem; border-radius: 8px; font-size: 0.9rem;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; align-items: center;">
-              <strong>Conexión Activa:</strong>
-              <span id="diagDbStatus" class="status-pill live">Verificando...</span>
+              <strong>Conexión Supabase:</strong>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span id="diagDbStatus" class="status-pill live">Verificando...</span>
+                <button type="button" id="btnTestDbConnection" class="btn-secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">🔌 Probar Conexión</button>
+              </div>
             </div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem; color: var(--muted); font-size: 0.82rem;">
-              <span>Servidor Supabase:</span>
+              <span>Servidor:</span>
               <span id="diagDbUrl" style="word-break: break-all;">-</span>
             </div>
+            <div id="diagTestResult" style="display: none; margin-top: 0.5rem; font-size: 0.82rem; padding: 0.5rem 0.75rem; border-radius: 6px;"></div>
+
+            <!-- Panel de configuración rápida de Supabase (guardada en navegador) -->
+            <details style="margin-top: 0.75rem; border-top: 1px dashed var(--border); padding-top: 0.75rem;">
+              <summary style="cursor: pointer; font-size: 0.84rem; color: var(--primary); font-weight: 600;">
+                ⚙️ Configurar / Cambiar credenciales de Supabase en este dispositivo
+              </summary>
+              <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem;">
+                <div>
+                  <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">URL de Supabase:</label>
+                  <input type="url" id="inputDiagSupabaseUrl" class="form-input" style="font-size: 0.82rem; padding: 0.4rem 0.6rem;" placeholder="https://tu-proyecto.supabase.co" />
+                </div>
+                <div>
+                  <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">Clave pública anon:</label>
+                  <input type="text" id="inputDiagSupabaseKey" class="form-input" style="font-size: 0.82rem; padding: 0.4rem 0.6rem;" placeholder="eyJhbGciOi..." />
+                </div>
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.25rem;">
+                  <button type="button" id="btnSaveSupabaseCreds" class="btn-primary" style="font-size: 0.8rem; padding: 0.4rem 0.85rem;">
+                    Guardar y Conectar
+                  </button>
+                </div>
+              </div>
+            </details>
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
@@ -539,7 +569,11 @@ const supabaseAnonKey =
           </div>
 
           <div style="display: flex; flex-direction: column; gap: 0.6rem;">
-            <button type="button" id="btnExportFullJson" class="btn-primary" style="justify-content: center;">
+            <label class="btn-primary" style="justify-content: center; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+              <span>📊</span> Importar Planilla CSV de Padrinos (con tildes)
+              <input type="file" id="inputImportCsvBackup" accept=".csv,text/csv,text/plain" style="display: none;" />
+            </label>
+            <button type="button" id="btnExportFullJson" class="btn-secondary" style="justify-content: center;">
               <span>📥</span> Descargar Copia de Respaldo Completa (JSON)
             </button>
             <label class="btn-secondary" style="justify-content: center; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; margin: 0;">
@@ -547,7 +581,7 @@ const supabaseAnonKey =
               <input type="file" id="inputRestoreJson" accept=".json" style="display: none;" />
             </label>
             <button type="button" id="btnForceResync" class="btn-secondary" style="justify-content: center;">
-              <span>🔄</span> Forzar Resincronización Completa
+              <span>🔄</span> Forzar Resincronización Completa con Supabase
             </button>
           </div>
         </div>
@@ -563,7 +597,7 @@ const supabaseAnonKey =
     <!-- Script de lógica de la aplicación -->
     <script>
       import { createClient } from '@supabase/supabase-js';
-      import { supabase as defaultSupabase, isSupabaseConfigured as defaultIsConfigured } from '@/lib/supabase';
+      import { supabase as defaultSupabase } from '@/lib/supabase';
       import type { Sponsor, MonthlyReportRecord, HorseRecord, ManadaRecord } from '@/lib/types';
       import { MONTH_NAMES } from '@/lib/types';
 
@@ -574,18 +608,27 @@ const supabaseAnonKey =
         currentMonth: Number(bodyEl.dataset.currentMonth) || new Date().getMonth() + 1,
       };
 
-      // Si las credenciales vinieron desde el servidor en data-attributes, las usamos
+      // Credenciales: Almacenadas en LocalStorage (override manual), Servidor (data-attributes) o default
+      let localSupabaseUrl = (localStorage.getItem('almas_supabase_url') || '').trim();
+      let localSupabaseKey = (localStorage.getItem('almas_supabase_anon_key') || '').trim();
       const serverUrl = (bodyEl.dataset.supabaseUrl || '').trim();
       const serverKey = (bodyEl.dataset.supabaseKey || '').trim();
-      const hasServerConfig = Boolean(serverUrl && serverKey && serverUrl.startsWith('https://') && !serverUrl.includes('tu-proyecto'));
 
-      const supabase = hasServerConfig
-        ? createClient(serverUrl, serverKey)
+      let activeSupabaseUrl = localSupabaseUrl || serverUrl || (defaultSupabase ? (defaultSupabase as any).supabaseUrl : '');
+      let activeSupabaseKey = localSupabaseKey || serverKey || (defaultSupabase ? (defaultSupabase as any).supabaseKey : '');
+
+      let isSupabaseConfigured = Boolean(
+        activeSupabaseUrl &&
+        activeSupabaseKey &&
+        activeSupabaseUrl.startsWith('https://') &&
+        !activeSupabaseUrl.includes('tu-proyecto')
+      );
+
+      let supabase = isSupabaseConfigured
+        ? createClient(activeSupabaseUrl, activeSupabaseKey)
         : defaultSupabase;
 
-      const isSupabaseConfigured = hasServerConfig || defaultIsConfigured;
-      let isLiveDb = isSupabaseConfigured;
-      const activeSupabaseUrl = serverUrl || (defaultSupabase ? (defaultSupabase as any).supabaseUrl : '');
+      let isLiveDb = Boolean(supabase && isSupabaseConfigured);
 
       // Estado de la aplicación
       let activeYear = config.currentYear;
@@ -687,6 +730,14 @@ const supabaseAnonKey =
 
       const btnLogout = document.getElementById('btnLogout')!;
       const btnExportCsv = document.getElementById('btnExportCsv')!;
+      const btnImportCsv = document.getElementById('btnImportCsv')!;
+      const inputImportCsv = document.getElementById('inputImportCsv') as HTMLInputElement;
+      const inputImportCsvBackup = document.getElementById('inputImportCsvBackup') as HTMLInputElement;
+      const btnTestDbConnection = document.getElementById('btnTestDbConnection');
+      const diagTestResult = document.getElementById('diagTestResult');
+      const inputDiagSupabaseUrl = document.getElementById('inputDiagSupabaseUrl') as HTMLInputElement;
+      const inputDiagSupabaseKey = document.getElementById('inputDiagSupabaseKey') as HTMLInputElement;
+      const btnSaveSupabaseCreds = document.getElementById('btnSaveSupabaseCreds');
 
       // Inicialización de autenticación por PIN
       function initAuth() {
@@ -850,7 +901,18 @@ const supabaseAnonKey =
             if (!error && data && data.length > 0) {
               loadedManadas = data;
             } else {
-              loadedManadas = localManadas;
+              // Si la tabla de manadas en Supabase está vacía, sembrar las manadas con UUIDs válidos
+              try {
+                const toInsert = DEFAULT_MANADAS.map(({ id, ...rest }: any) => rest);
+                const { data: createdM, error: mErr } = await supabase.from('manadas').insert(toInsert).select();
+                if (!mErr && createdM && createdM.length > 0) {
+                  loadedManadas = createdM;
+                } else {
+                  loadedManadas = localManadas;
+                }
+              } catch {
+                loadedManadas = localManadas;
+              }
             }
           } catch {
             loadedManadas = localManadas;
@@ -1177,7 +1239,7 @@ const supabaseAnonKey =
       }
 
       // ==========================================
-      // GESTIÓN DE CABALLOS (LA MANADA DE 14)
+      // GESTIÓN DE CABALLOS (MANADA INICIAL + RECUPERADOS)
       // ==========================================
       const INITIAL_HORSES = [
         { nombre: 'Cometa', slug: 'cometa', estado: 'disponible' as const, destacado: true, foto: '/placeholders/horse-01.svg', descripcion: 'Parte de las vidas que cuidamos con amor en el santuario.' },
@@ -1194,15 +1256,15 @@ const supabaseAnonKey =
         { nombre: 'Wayra', slug: 'wayra', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-06.svg', descripcion: 'Espíritu de viento que honra la libertad recuperada.' },
         { nombre: 'Rumi', slug: 'rumi', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-01.svg', descripcion: 'Paciencia, respeto y cuidado en cada etapa de su vida.' },
         { nombre: 'Chimango', slug: 'chimango', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-02.svg', descripcion: 'Un sobreviviente que hoy disfruta de la tranquilidad del santuario.' },
+        // Caballos recuperados de la planilla de padrinos
+        { id: 'local-horse-1793750853275', nombre: 'Shailin', slug: 'shailin', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-03.svg', descripcion: 'Caballo rescatado al cuidado y amor del santuario.' },
+        { id: 'local-horse-malvi', nombre: 'Malvi', slug: 'malvi', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-04.svg', descripcion: 'Compañera en el santuario, cuidada día a día.' },
+        { id: 'local-horse-1793746687871', nombre: 'A la causa', slug: 'a-la-causa', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-05.svg', descripcion: 'Apadrinamiento general destinado al sostenimiento integral de toda la manada.' },
+        { id: 'local-horse-1793746460273', nombre: 'Cielo', slug: 'cielo', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-06.svg', descripcion: 'Noble y sereno, disfrutando de su vida en libertad.' },
+        { id: 'local-horse-1793745941509', nombre: 'Lunito', slug: 'lunito', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-01.svg', descripcion: 'Curioso y dulce, protegido con amor en el santuario.' },
+        { id: 'local-horse-1793746449220', nombre: 'Luna', slug: 'luna', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-02.svg', descripcion: 'Compañera fiel y tranquila de la manada.' },
+        { id: 'local-horse-1793746440514', nombre: 'ALBA', slug: 'alba', estado: 'disponible' as const, destacado: false, foto: '/placeholders/horse-03.svg', descripcion: 'Fuerte y libre, cuidada con dedicación.' },
       ];
-
-      function getFallbackHorses(): HorseRecord[] {
-        return INITIAL_HORSES.map((h, i) => ({
-          ...h,
-          id: `horse-auto-${i + 1}`,
-          created_at: new Date().toISOString(),
-        })) as HorseRecord[];
-      }
 
       async function loadHorsesData() {
         let loadedHorses: HorseRecord[] = [];
@@ -1227,8 +1289,7 @@ const supabaseAnonKey =
           }
         }
 
-        // UNIFICACIÓN SIN PÉRDIDA: Supabase + LocalStorage
-        // Usamos un Map para que NINGÚN caballo (ni los 45 ni ninguno agregado) se pierda
+        // UNIFICACIÓN SIN PÉRDIDA: Supabase + LocalStorage + Iniciales/Recuperados
         const horsesMap = new Map<string, HorseRecord>();
 
         // 1. Agregar todos los de Supabase
@@ -1255,12 +1316,19 @@ const supabaseAnonKey =
           }
         });
 
-        if (horsesMap.size > 0) {
-          loadedHorses = Array.from(horsesMap.values());
-        } else {
-          loadedHorses = getFallbackHorses();
-        }
+        // 3. Unificar con los Iniciales y Recuperados
+        INITIAL_HORSES.forEach((ih, i) => {
+          const key = (ih.nombre || '').toLowerCase().trim();
+          if (!horsesMap.has(key)) {
+            horsesMap.set(key, {
+              ...ih,
+              id: (ih as any).id || `horse-auto-${i + 1}`,
+              created_at: new Date().toISOString(),
+            } as HorseRecord);
+          }
+        });
 
+        loadedHorses = Array.from(horsesMap.values());
         horsesList = loadedHorses;
         saveLocalHorses();
 
@@ -1271,8 +1339,36 @@ const supabaseAnonKey =
           if (missingInRemote.length > 0) {
             console.log(`[AlmasLibres] Sincronizando ${missingInRemote.length} caballos locales hacia Supabase...`);
             try {
-              const toInsert = missingInRemote.map(({ id, created_at, ...rest }: any) => rest);
-              await supabase.from('caballos').insert(toInsert as any);
+              const isUuid = (val: any) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+              const toInsert = missingInRemote.map(({ id, created_at, ...rest }: any) => {
+                let safeManadaId = isUuid(rest.manada_id) ? rest.manada_id : null;
+                if (!safeManadaId && rest.manada_nombre) {
+                  const mMatch = manadasList.find((m) => m.nombre.toLowerCase().trim() === rest.manada_nombre.toLowerCase().trim() && isUuid(m.id));
+                  if (mMatch) safeManadaId = mMatch.id;
+                }
+                return {
+                  ...rest,
+                  slug: rest.slug || rest.nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+                  estado: rest.estado || 'disponible',
+                  manada_id: safeManadaId,
+                  manada_nombre: rest.manada_nombre || undefined,
+                };
+              });
+              const { data: newHorses, error: horseInsErr } = await supabase.from('caballos').insert(toInsert as any).select();
+              if (!horseInsErr && newHorses) {
+                newHorses.forEach((nh) => {
+                  const localH = horsesList.find((h) => h.nombre.toLowerCase().trim() === nh.nombre.toLowerCase().trim());
+                  if (localH && localH.id !== nh.id) {
+                    const oldHId = localH.id;
+                    localH.id = nh.id;
+                    sponsors.forEach((sp) => {
+                      if (sp.caballo_id === oldHId) sp.caballo_id = nh.id;
+                    });
+                  }
+                });
+                saveLocalHorses();
+                saveLocalStorage();
+              }
             } catch (syncErr) {
               console.warn('[AlmasLibres] Error sincronizando caballos locales:', syncErr);
             }
@@ -1711,6 +1807,163 @@ const supabaseAnonKey =
       // ==========================================
       // GESTIÓN DE PADRINOS (CARGA Y CRUD)
       // ==========================================
+      const RECOVERED_SPONSORS: Sponsor[] = [
+        {
+          id: 'sp-rec-1',
+          nombre: 'Amanda E. Borbot',
+          caballo_id: 'local-horse-1793750853275',
+          caballo_nombre: 'Shailin',
+          estado: 'activo',
+          fecha_inicio: '2026-11-04',
+          telefono: '',
+          email: '',
+          monto: 0,
+          moneda: 'ARS',
+          notas: 'Shailin y Malvi',
+        },
+        {
+          id: 'sp-rec-2',
+          nombre: 'Marisa Rossi',
+          caballo_id: 'local-horse-1793746687871',
+          caballo_nombre: 'A la causa',
+          estado: 'activo',
+          fecha_inicio: '2026-11-01',
+          telefono: '1133939488',
+          email: 'notiene@notiene',
+          monto: 10000,
+          moneda: 'ARS',
+          notas: '',
+        },
+        {
+          id: 'sp-rec-3',
+          nombre: 'Alejandra Villafañe',
+          caballo_id: 'local-horse-1793746687871',
+          caballo_nombre: 'A la causa',
+          estado: 'activo',
+          fecha_inicio: '2026-11-03',
+          telefono: '3571326631',
+          email: '',
+          monto: 0,
+          moneda: 'ARS',
+          notas: '',
+        },
+        {
+          id: 'sp-rec-4',
+          nombre: 'Anke Gunkel',
+          caballo_id: 'local-horse-1793746460273',
+          caballo_nombre: 'Cielo',
+          estado: 'activo',
+          fecha_inicio: '2026-11-03',
+          telefono: '',
+          email: '',
+          monto: 0,
+          moneda: 'ARS',
+          notas: '',
+        },
+        {
+          id: 'sp-rec-5',
+          nombre: 'Maria Rodriguez',
+          caballo_id: 'local-horse-1793745941509',
+          caballo_nombre: 'Lunito',
+          estado: 'activo',
+          fecha_inicio: '2026-10-03',
+          telefono: '3571355060',
+          email: 'notiene@notiene',
+          monto: 10000,
+          moneda: 'ARS',
+          notas: '',
+        },
+        {
+          id: 'sp-rec-6',
+          nombre: 'Carola',
+          caballo_id: 'local-horse-1793746449220',
+          caballo_nombre: 'Luna',
+          estado: 'activo',
+          fecha_inicio: '2026-11-03',
+          telefono: '2804686472',
+          email: 'notiene@notiene',
+          monto: 15000,
+          moneda: 'ARS',
+          notas: '',
+        },
+        {
+          id: 'sp-rec-7',
+          nombre: 'Patricia del Valle Pacetti',
+          caballo_id: 'local-horse-1793746687871',
+          caballo_nombre: 'A la causa',
+          estado: 'activo',
+          fecha_inicio: '2026-10-01',
+          telefono: '3547571377',
+          email: 'notiene@notiene',
+          monto: 3000,
+          moneda: 'ARS',
+          notas: '',
+        },
+        {
+          id: 'sp-rec-8',
+          nombre: 'Osvaldo Alberto Delgado',
+          caballo_id: 'local-horse-1793746330537',
+          caballo_nombre: 'Cachafaz',
+          estado: 'activo',
+          fecha_inicio: '2026-10-01',
+          telefono: '1151591556',
+          email: 'adelgado@gmail.com',
+          monto: 15000,
+          moneda: 'ARS',
+          notas: '',
+        },
+        {
+          id: 'sp-rec-9',
+          nombre: 'Veronica Rodriguez',
+          caballo_id: 'local-horse-1793746687871',
+          caballo_nombre: 'A la causa',
+          estado: 'activo',
+          fecha_inicio: '2026-10-01',
+          telefono: '3571320663',
+          email: 'verorodriguez_19@hotmail.com',
+          monto: 15000,
+          moneda: 'ARS',
+          notas: '',
+        },
+        {
+          id: 'sp-rec-10',
+          nombre: 'Eduardo Quiroz',
+          caballo_id: 'horse-auto-12',
+          caballo_nombre: 'Wayra',
+          estado: 'activo',
+          fecha_inicio: '2026-10-01',
+          telefono: '2966762276',
+          email: 'eduquiroz2021erq@gmail.com',
+          monto: 15000,
+          moneda: 'ARS',
+          notas: '',
+        },
+        {
+          id: 'sp-rec-11',
+          nombre: 'Magali Quiroz',
+          caballo_id: 'local-horse-1793746440514',
+          caballo_nombre: 'ALBA',
+          estado: 'activo',
+          fecha_inicio: '2026-10-01',
+          telefono: '2966564601',
+          email: 'magaliquirozcba@gmail.com',
+          monto: 30000,
+          moneda: 'ARS',
+          notas: '',
+        },
+      ];
+
+      const RECOVERED_REPORTS: Array<{ padrino_nombre: string; mes: number; anio: number }> = [
+        { padrino_nombre: 'Marisa Rossi', mes: 11, anio: 2026 },
+        { padrino_nombre: 'Maria Rodriguez', mes: 10, anio: 2026 },
+        { padrino_nombre: 'Patricia del Valle Pacetti', mes: 10, anio: 2026 },
+        { padrino_nombre: 'Osvaldo Alberto Delgado', mes: 10, anio: 2026 },
+        { padrino_nombre: 'Osvaldo Alberto Delgado', mes: 11, anio: 2026 },
+        { padrino_nombre: 'Veronica Rodriguez', mes: 10, anio: 2026 },
+        { padrino_nombre: 'Eduardo Quiroz', mes: 10, anio: 2026 },
+        { padrino_nombre: 'Magali Quiroz', mes: 10, anio: 2026 },
+      ];
+
       async function loadSponsorsData() {
         let loadedSponsors: Sponsor[] = [];
         const localSponsorsRaw = localStorage.getItem('almas_sponsors');
@@ -1734,7 +1987,7 @@ const supabaseAnonKey =
           }
         }
 
-        // UNIFICACIÓN SIN PÉRDIDA: Supabase + LocalStorage
+        // UNIFICACIÓN SIN PÉRDIDA: Supabase + LocalStorage + Recuperados
         const sponsorsMap = new Map<string, Sponsor>();
 
         // 1. Padrinos de Supabase
@@ -1748,11 +2001,25 @@ const supabaseAnonKey =
             const alreadyExists = Array.from(sponsorsMap.values()).some(
               (s) =>
                 (s.nombre || '').toLowerCase().trim() === (lsp.nombre || '').toLowerCase().trim() &&
-                s.caballo_id === lsp.caballo_id
+                ((s.caballo_id && s.caballo_id === lsp.caballo_id) ||
+                 (s.caballo_nombre && lsp.caballo_nombre && s.caballo_nombre.toLowerCase().trim() === lsp.caballo_nombre.toLowerCase().trim()))
             );
             if (!alreadyExists) {
               sponsorsMap.set(lsp.id, lsp);
             }
+          }
+        });
+
+        // 3. Unificar con los Padrinos Recuperados (para que nunca falten los datos del CSV)
+        RECOVERED_SPONSORS.forEach((rsp) => {
+          const alreadyExists = Array.from(sponsorsMap.values()).some(
+            (s) =>
+              (s.nombre || '').toLowerCase().trim() === rsp.nombre.toLowerCase().trim() &&
+              ((s.caballo_id && s.caballo_id === rsp.caballo_id) ||
+               (s.caballo_nombre && rsp.caballo_nombre && s.caballo_nombre.toLowerCase().trim() === rsp.caballo_nombre.toLowerCase().trim()))
+          );
+          if (!alreadyExists) {
+            sponsorsMap.set(rsp.id, rsp);
           }
         });
 
@@ -1762,13 +2029,40 @@ const supabaseAnonKey =
 
         // Sincronizar hacia Supabase si hay padrinos locales faltantes en la base remota
         if (isLiveDb && supabase && supabaseSponsors.length < loadedSponsors.length) {
-          const supabaseIds = new Set(supabaseSponsors.map((s) => s.id));
-          const missingInRemote = loadedSponsors.filter((s) => !supabaseIds.has(s.id));
+          const supabaseKeys = new Set(
+            supabaseSponsors.map((s) => `${(s.nombre || '').toLowerCase().trim()}::${(s.caballo_nombre || '').toLowerCase().trim()}`)
+          );
+          const missingInRemote = loadedSponsors.filter(
+            (s) => !supabaseKeys.has(`${(s.nombre || '').toLowerCase().trim()}::${(s.caballo_nombre || '').toLowerCase().trim()}`)
+          );
+
           if (missingInRemote.length > 0) {
             console.log(`[AlmasLibres] Sincronizando ${missingInRemote.length} padrinos locales a Supabase...`);
             try {
-              const toInsert = missingInRemote.map(({ id, created_at, ...rest }: any) => rest);
-              await supabase.from('padrinos').insert(toInsert as any);
+              const toInsert = missingInRemote.map(({ id, created_at, ...rest }: any) => ({
+                ...rest,
+                caballo_id: rest.caballo_id || 'general',
+                caballo_nombre: rest.caballo_nombre || 'Caballo',
+                estado: rest.estado || 'activo',
+              }));
+              const { data: newSps, error: spInsErr } = await supabase.from('padrinos').insert(toInsert as any).select();
+              if (!spInsErr && newSps) {
+                newSps.forEach((nsp) => {
+                  const localSp = sponsors.find(
+                    (s) =>
+                      s.nombre.toLowerCase().trim() === nsp.nombre.toLowerCase().trim() &&
+                      s.caballo_nombre.toLowerCase().trim() === nsp.caballo_nombre.toLowerCase().trim()
+                  );
+                  if (localSp && localSp.id !== nsp.id) {
+                    const oldId = localSp.id;
+                    localSp.id = nsp.id;
+                    reports.forEach((r) => {
+                      if (r.padrino_id === oldId) r.padrino_id = nsp.id;
+                    });
+                  }
+                });
+                saveLocalStorage();
+              }
             } catch (syncErr) {
               console.warn('[AlmasLibres] Auto-sincronización de padrinos diferida:', syncErr);
             }
@@ -1790,6 +2084,7 @@ const supabaseAnonKey =
       async function loadReportsForYear(year: number) {
         const localReportsRaw = localStorage.getItem(`almas_reports_${year}`);
         const localReports: MonthlyReportRecord[] = localReportsRaw ? JSON.parse(localReportsRaw) : [];
+        let supabaseReports: MonthlyReportRecord[] = [];
 
         if (isLiveDb && supabase) {
           try {
@@ -1800,29 +2095,71 @@ const supabaseAnonKey =
 
             if (reportsError) {
               console.warn('[AlmasLibres] Error en reportes de Supabase:', reportsError.message);
-              reports = localReports;
-            } else {
-              reports = reportsData || [];
-              if (reports.length === 0 && localReports.length > 0) {
-                reports = localReports;
-                try {
-                  const toInsert = localReports.map(({ id, ...rest }: any) => rest);
-                  await supabase.from('reportes_mensuales').upsert(toInsert, { onConflict: 'padrino_id,anio,mes' });
-                } catch (e) {
-                  console.warn('[AlmasLibres] Sincronización de reportes locales diferida:', e);
-                }
-              }
+            } else if (reportsData) {
+              supabaseReports = reportsData;
             }
           } catch (err) {
             console.warn('[AlmasLibres] Error de conexión en reportes:', err);
-            reports = localReports;
           }
-        } else {
-          reports = localReports;
         }
 
-        if (reports.length > 0) {
-          localStorage.setItem(`almas_reports_${year}`, JSON.stringify(reports));
+        // UNIFICACIÓN SIN PÉRDIDA: Supabase + LocalStorage + Semilla recuperada
+        const reportsMap = new Map<string, MonthlyReportRecord>();
+
+        // 1. Supabase
+        supabaseReports.forEach((sr) => {
+          const key = `${sr.padrino_id}-${sr.anio}-${sr.mes}`;
+          reportsMap.set(key, sr);
+        });
+
+        // 2. LocalStorage
+        localReports.forEach((lr) => {
+          const key = `${lr.padrino_id}-${lr.anio}-${lr.mes}`;
+          if (!reportsMap.has(key)) {
+            reportsMap.set(key, lr);
+          }
+        });
+
+        // 3. Semilla recuperada para 2026
+        if (year === 2026 && RECOVERED_REPORTS.length > 0) {
+          RECOVERED_REPORTS.forEach((rr) => {
+            const sp = sponsors.find(
+              (s) => s.nombre.toLowerCase().trim() === rr.padrino_nombre.toLowerCase().trim()
+            );
+            if (sp) {
+              const key = `${sp.id}-${rr.anio}-${rr.mes}`;
+              if (!reportsMap.has(key)) {
+                reportsMap.set(key, {
+                  padrino_id: sp.id,
+                  anio: rr.anio,
+                  mes: rr.mes,
+                  enviado: true,
+                  padrino_nombre: sp.nombre,
+                } as any);
+              }
+            }
+          });
+        }
+
+        reports = Array.from(reportsMap.values());
+        localStorage.setItem(`almas_reports_${year}`, JSON.stringify(reports));
+
+        // Sincronizar hacia Supabase los reportes locales faltantes que tengan UUID válido
+        if (isLiveDb && supabase) {
+          const remoteKeys = new Set(supabaseReports.map((sr) => `${sr.padrino_id}-${sr.anio}-${sr.mes}`));
+          const missingInRemote = reports.filter(
+            (r) =>
+              !remoteKeys.has(`${r.padrino_id}-${r.anio}-${r.mes}`) &&
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r.padrino_id)
+          );
+          if (missingInRemote.length > 0) {
+            try {
+              const toInsert = missingInRemote.map(({ id, padrino_nombre, ...rest }: any) => rest);
+              await supabase.from('reportes_mensuales').upsert(toInsert, { onConflict: 'padrino_id,anio,mes' });
+            } catch (repSyncErr) {
+              console.warn('[AlmasLibres] Sincronización diferida de reportes a Supabase:', repSyncErr);
+            }
+          }
         }
 
         renderTable();
@@ -1914,7 +2251,11 @@ const supabaseAnonKey =
             const monthCells = Array.from({ length: 12 }, (_, i) => {
               const month = i + 1;
               const isSent = reports.some(
-                (r) => r.padrino_id === sp.id && r.anio === activeYear && r.mes === month && r.enviado
+                (r) =>
+                  (r.padrino_id === sp.id || (r as any).padrino_nombre === sp.nombre) &&
+                  r.anio === activeYear &&
+                  r.mes === month &&
+                  r.enviado
               );
               const isCurrent = month === config.currentMonth && activeYear === config.currentYear;
 
@@ -2012,7 +2353,7 @@ const supabaseAnonKey =
         });
       }
 
-      // Alternar estado de reporte mensual
+      // Alternar estado de reporte mensual (completamente a prueba de fallos y con persistencia inmediata)
       async function handleReportToggle(e: Event) {
         const btn = e.currentTarget as HTMLButtonElement;
         const padrinoId = btn.getAttribute('data-padrino-id')!;
@@ -2020,50 +2361,124 @@ const supabaseAnonKey =
         const isCurrentlySent = btn.classList.contains('sent');
         const nextState = !isCurrentlySent;
 
+        // 1. Actualización visual inmediata en el botón
         btn.classList.toggle('sent', nextState);
         btn.innerHTML = nextState ? '✓' : '•';
+        btn.title = nextState
+          ? `Reporte ${MONTH_NAMES[month - 1]} ${activeYear} enviado`
+          : `Marcar reporte ${MONTH_NAMES[month - 1]} ${activeYear} como enviado`;
 
-        if (isLiveDb && supabase) {
-          try {
-            if (nextState) {
-              const { error } = await supabase.from('reportes_mensuales').upsert({
-                padrino_id: padrinoId,
-                anio: activeYear,
-                mes: month,
-                enviado: true,
-                updated_at: new Date().toISOString(),
-              }, { onConflict: 'padrino_id,anio,mes' });
-              if (error) throw error;
-            } else {
-              const { error } = await supabase
-                .from('reportes_mensuales')
-                .delete()
-                .eq('padrino_id', padrinoId)
-                .eq('anio', activeYear)
-                .eq('mes', month);
-              if (error) throw error;
-            }
-          } catch (err) {
-            console.error('Error actualizando reporte en Supabase:', err);
-            showToast('Error de sincronización con la base', true);
-            btn.classList.toggle('sent', isCurrentlySent);
-            btn.innerHTML = isCurrentlySent ? '✓' : '•';
-            return;
-          }
-        }
+        // 2. Localizar datos del padrino
+        const sponsor = sponsors.find((s) => s.id === padrinoId);
+        const sponsorName = sponsor ? sponsor.nombre : '';
 
+        // 3. Actualización de estado en memoria
         if (nextState) {
-          reports.push({ padrino_id: padrinoId, anio: activeYear, mes: month, enviado: true });
+          const alreadyInReports = reports.some(
+            (r) =>
+              (r.padrino_id === padrinoId || (sponsorName && (r as any).padrino_nombre === sponsorName)) &&
+              r.anio === activeYear &&
+              r.mes === month
+          );
+          if (!alreadyInReports) {
+            reports.push({
+              padrino_id: padrinoId,
+              padrino_nombre: sponsorName,
+              anio: activeYear,
+              mes: month,
+              enviado: true,
+            } as any);
+          }
         } else {
           reports = reports.filter(
-            (r) => !(r.padrino_id === padrinoId && r.anio === activeYear && r.mes === month)
+            (r) =>
+              !(
+                (r.padrino_id === padrinoId || (sponsorName && (r as any).padrino_nombre === sponsorName)) &&
+                r.anio === activeYear &&
+                r.mes === month
+              )
           );
         }
 
-        if (!isLiveDb) saveLocalStorage();
-
+        // 4. PERSISTENCIA INMEDIATA EN LOCALSTORAGE (SIEMPRE se guarda en el navegador sin importar red)
+        localStorage.setItem(`almas_reports_${activeYear}`, JSON.stringify(reports));
         updateMetrics();
-        showToast(nextState ? `Reporte de ${MONTH_NAMES[month - 1]} marcado como enviado` : `Reporte desmarcado`);
+
+        // 5. Sincronización asíncrona segura con Supabase
+        if (isLiveDb && supabase) {
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(padrinoId);
+
+          if (isUuid) {
+            try {
+              if (nextState) {
+                const { error } = await supabase.from('reportes_mensuales').upsert({
+                  padrino_id: padrinoId,
+                  anio: activeYear,
+                  mes: month,
+                  enviado: true,
+                  updated_at: new Date().toISOString(),
+                }, { onConflict: 'padrino_id,anio,mes' });
+                if (error) throw error;
+              } else {
+                const { error } = await supabase
+                  .from('reportes_mensuales')
+                  .delete()
+                  .eq('padrino_id', padrinoId)
+                  .eq('anio', activeYear)
+                  .eq('mes', month);
+                if (error) throw error;
+              }
+              showToast(nextState ? `Reporte de ${MONTH_NAMES[month - 1]} guardado y sincronizado` : `Reporte desmarcado`);
+              return;
+            } catch (err: any) {
+              console.warn('[AlmasLibres] Error sincronizando reporte en Supabase:', err);
+              showToast(`Guardado en el dispositivo (Supabase diferido: ${err.message || 'error'})`, false);
+              return;
+            }
+          } else {
+            // El padrino tiene ID local: sincronizamos el padrino para obtener su UUID en Supabase
+            try {
+              if (sponsor) {
+                const { id: _oldId, created_at: _c, ...spPayload } = sponsor as any;
+                const { data: newSp, error: spErr } = await supabase
+                  .from('padrinos')
+                  .insert([spPayload])
+                  .select()
+                  .single();
+
+                if (!spErr && newSp && newSp.id) {
+                  const oldId = sponsor.id;
+                  const newId = newSp.id;
+                  sponsor.id = newId;
+
+                  // Actualizar referencias en los reportes
+                  reports.forEach((r) => {
+                    if (r.padrino_id === oldId) r.padrino_id = newId;
+                  });
+                  localStorage.setItem('almas_sponsors', JSON.stringify(sponsors));
+                  localStorage.setItem(`almas_reports_${activeYear}`, JSON.stringify(reports));
+
+                  if (nextState) {
+                    await supabase.from('reportes_mensuales').upsert({
+                      padrino_id: newId,
+                      anio: activeYear,
+                      mes: month,
+                      enviado: true,
+                      updated_at: new Date().toISOString(),
+                    }, { onConflict: 'padrino_id,anio,mes' });
+                  }
+                  renderTable(); // actualizar data-padrino-id en los botones
+                  showToast(nextState ? `Reporte de ${MONTH_NAMES[month - 1]} sincronizado con Supabase` : `Reporte desmarcado`);
+                  return;
+                }
+              }
+            } catch (syncSpErr) {
+              console.warn('[AlmasLibres] Auto-sincronización de padrino local diferida:', syncSpErr);
+            }
+          }
+        }
+
+        showToast(nextState ? `Reporte de ${MONTH_NAMES[month - 1]} guardado con éxito` : `Reporte desmarcado`);
       }
 
       // Actualizar Métricas
@@ -2289,7 +2704,11 @@ const supabaseAnonKey =
         const rows = sponsors.map((sp) => {
           const monthValues = Array.from({ length: 12 }, (_, i) => {
             const isSent = reports.some(
-              (r) => r.padrino_id === sp.id && r.anio === activeYear && r.mes === i + 1 && r.enviado
+              (r) =>
+                (r.padrino_id === sp.id || (r as any).padrino_nombre === sp.nombre) &&
+                r.anio === activeYear &&
+                r.mes === i + 1 &&
+                r.enviado
             );
             return isSent ? 'SI' : 'NO';
           });
@@ -2323,6 +2742,248 @@ const supabaseAnonKey =
       }
 
       // ==========================================
+      // IMPORTADOR INTELIGENTE DE PLANILLA CSV
+      // ==========================================
+      async function importFromCsvFile(file: File) {
+        try {
+          const text = await file.text();
+          if (!text || text.trim().length === 0) {
+            alert('El archivo CSV está vacío.');
+            return;
+          }
+
+          const cleanText = text.replace(/^\uFEFF/, '');
+          const lines = cleanText.split(/\r?\n/).filter((l) => l.trim().length > 0);
+          if (lines.length < 2) {
+            alert('El archivo CSV no contiene suficientes filas.');
+            return;
+          }
+
+          // Auto-detección de delimitador (; o ,)
+          const firstLine = lines[0];
+          const semicolonCount = (firstLine.match(/;/g) || []).length;
+          const commaCount = (firstLine.match(/,/g) || []).length;
+          const delimiter = semicolonCount >= commaCount ? ';' : ',';
+
+          function parseLine(line: string): string[] {
+            const result: string[] = [];
+            let cur = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+              const c = line[i];
+              if (c === '"') {
+                if (inQuotes && line[i + 1] === '"') {
+                  cur += '"';
+                  i++;
+                } else {
+                  inQuotes = !inQuotes;
+                }
+              } else if (c === delimiter && !inQuotes) {
+                result.push(cur.trim());
+                cur = '';
+              } else {
+                cur += c;
+              }
+            }
+            result.push(cur.trim());
+            return result;
+          }
+
+          const rawHeaders = parseLine(lines[0]);
+          const headers = rawHeaders.map((h) => h.toLowerCase().trim().replace(/^["']|["']$/g, ''));
+
+          const idxNombre = headers.findIndex((h) => h.includes('nombre') || h.includes('padrino'));
+          const idxCaballo = headers.findIndex((h) => h === 'caballo' || h.includes('nombre caballo') || h.includes('caballo'));
+          const idxIdCaballo = headers.findIndex((h) => h.includes('id caballo') || h.includes('caballo id') || h.includes('caballoid'));
+          const idxEstado = headers.findIndex((h) => h.includes('estado'));
+          const idxFecha = headers.findIndex((h) => h.includes('fecha'));
+          const idxTel = headers.findIndex((h) => h.includes('telefono') || h.includes('tel') || h.includes('celular') || h.includes('whatsapp'));
+          const idxEmail = headers.findIndex((h) => h.includes('email') || h.includes('correo'));
+          const idxMonto = headers.findIndex((h) => h.includes('monto') || h.includes('aporte'));
+          const idxMoneda = headers.findIndex((h) => h.includes('moneda'));
+          const idxNotas = headers.findIndex((h) => h.includes('nota') || h.includes('comentario'));
+
+          if (idxNombre === -1) {
+            alert('No se encontró la columna "Nombre" en el archivo CSV.');
+            return;
+          }
+
+          // Detección dinámica de columnas de meses (Ene .. Dic)
+          const monthCols: Array<{ colIdx: number; month: number; year: number }> = [];
+          headers.forEach((h, colIdx) => {
+            MONTH_NAMES.forEach((mName, mIdx) => {
+              const mShort = mName.slice(0, 3).toLowerCase();
+              if (h.includes(mShort) || h.includes(mName.toLowerCase())) {
+                const yearMatch = h.match(/\b(202\d)\b/);
+                const year = yearMatch ? Number(yearMatch[1]) : activeYear;
+                monthCols.push({ colIdx, month: mIdx + 1, year });
+              }
+            });
+          });
+
+          let importedCount = 0;
+          let newHorsesCount = 0;
+          let newReportsCount = 0;
+
+          for (let i = 1; i < lines.length; i++) {
+            const cols = parseLine(lines[i]);
+            if (!cols || cols.length === 0) continue;
+
+            const nombre = cols[idxNombre] ? cols[idxNombre].replace(/^["']|["']$/g, '').trim() : '';
+            if (!nombre) continue;
+
+            const caballo_nombre = idxCaballo !== -1 && cols[idxCaballo]
+              ? cols[idxCaballo].replace(/^["']|["']$/g, '').trim()
+              : 'General';
+            const caballo_id = idxIdCaballo !== -1 && cols[idxIdCaballo]
+              ? cols[idxIdCaballo].replace(/^["']|["']$/g, '').trim()
+              : '';
+            const estado = idxEstado !== -1 && cols[idxEstado]
+              ? (cols[idxEstado].replace(/^["']|["']$/g, '').toLowerCase().trim() as any)
+              : 'activo';
+            const fecha_inicio = idxFecha !== -1 && cols[idxFecha]
+              ? cols[idxFecha].replace(/^["']|["']$/g, '').trim()
+              : new Date().toISOString().split('T')[0];
+            const telefono = idxTel !== -1 && cols[idxTel] ? cols[idxTel].replace(/^["']|["']$/g, '').trim() : undefined;
+            const email = idxEmail !== -1 && cols[idxEmail] ? cols[idxEmail].replace(/^["']|["']$/g, '').trim() : undefined;
+            const rawMonto = idxMonto !== -1 && cols[idxMonto] ? cols[idxMonto].replace(/[^0-9.]/g, '') : '';
+            const monto = rawMonto ? Number(rawMonto) : undefined;
+            const moneda = idxMoneda !== -1 && cols[idxMoneda] ? cols[idxMoneda].replace(/^["']|["']$/g, '').trim() : 'ARS';
+            const notas = idxNotas !== -1 && cols[idxNotas] ? cols[idxNotas].replace(/^["']|["']$/g, '').trim() : undefined;
+
+            // 1. Asegurar existencia del caballo
+            let horseObj = horsesList.find(
+              (h) =>
+                (caballo_id && h.id === caballo_id) ||
+                h.nombre.toLowerCase().trim() === caballo_nombre.toLowerCase().trim()
+            );
+
+            if (!horseObj && caballo_nombre) {
+              const newHorseId = caballo_id || `local-horse-${Date.now()}-${newHorsesCount}`;
+              horseObj = {
+                id: newHorseId,
+                nombre: caballo_nombre,
+                slug: caballo_nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+                estado: 'disponible',
+                destacado: false,
+                foto: '/placeholders/horse-01.svg',
+                descripcion: 'Caballo importado de planilla de padrinos.',
+                created_at: new Date().toISOString(),
+              } as HorseRecord;
+              horsesList.push(horseObj);
+              newHorsesCount++;
+            }
+
+            const targetHorseId = horseObj ? horseObj.id : (caballo_id || 'general');
+
+            // 2. Buscar si el padrino ya existe o crear uno nuevo
+            let existingSp = sponsors.find(
+              (s) =>
+                s.nombre.toLowerCase().trim() === nombre.toLowerCase().trim() &&
+                (s.caballo_nombre || '').toLowerCase().trim() === caballo_nombre.toLowerCase().trim()
+            );
+
+            let sponsorId = existingSp ? existingSp.id : '';
+
+            if (existingSp) {
+              existingSp.caballo_id = targetHorseId;
+              existingSp.caballo_nombre = caballo_nombre;
+              existingSp.estado = estado || existingSp.estado;
+              existingSp.fecha_inicio = fecha_inicio || existingSp.fecha_inicio;
+              if (telefono) existingSp.telefono = telefono;
+              if (email) existingSp.email = email;
+              if (monto !== undefined) existingSp.monto = monto;
+              if (moneda) existingSp.moneda = moneda;
+              if (notas) existingSp.notas = notas;
+              importedCount++;
+            } else {
+              sponsorId = `local-${Date.now()}-${importedCount}`;
+              const newSp: Sponsor = {
+                id: sponsorId,
+                nombre,
+                caballo_id: targetHorseId,
+                caballo_nombre,
+                estado: estado || 'activo',
+                fecha_inicio: fecha_inicio || new Date().toISOString().split('T')[0],
+                telefono,
+                email,
+                monto,
+                moneda,
+                notas,
+                created_at: new Date().toISOString(),
+              };
+              sponsors.push(newSp);
+              importedCount++;
+            }
+
+            const finalSponsorId = existingSp ? existingSp.id : sponsorId;
+
+            // 3. Procesar las columnas de meses (tildes)
+            monthCols.forEach(({ colIdx, month, year }) => {
+              const rawVal = cols[colIdx] ? cols[colIdx].replace(/^["']|["']$/g, '').trim().toUpperCase() : '';
+              const isSent = rawVal === 'SI' || rawVal === 'SÍ' || rawVal === '1' || rawVal === 'TRUE' || rawVal === 'OK';
+              if (isSent) {
+                const repExists = reports.some(
+                  (r) =>
+                    (r.padrino_id === finalSponsorId || (r as any).padrino_nombre === nombre) &&
+                    r.anio === year &&
+                    r.mes === month
+                );
+                if (!repExists) {
+                  reports.push({
+                    padrino_id: finalSponsorId,
+                    padrino_nombre: nombre,
+                    anio: year,
+                    mes: month,
+                    enviado: true,
+                  } as any);
+                  newReportsCount++;
+                }
+              }
+            });
+          }
+
+          saveLocalHorses();
+          saveLocalStorage();
+          localStorage.setItem(`almas_reports_${activeYear}`, JSON.stringify(reports));
+
+          if (isLiveDb && supabase) {
+            try {
+              if (newHorsesCount > 0) {
+                const horsesToInsert = horsesList
+                  .filter((h) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(h.id))
+                  .map(({ id, created_at, ...rest }: any) => rest);
+                if (horsesToInsert.length > 0) {
+                  await supabase.from('caballos').insert(horsesToInsert as any);
+                }
+              }
+              const sponsorsToInsert = sponsors
+                .filter((s) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.id))
+                .map(({ id, created_at, ...rest }: any) => rest);
+              if (sponsorsToInsert.length > 0) {
+                await supabase.from('padrinos').insert(sponsorsToInsert as any);
+              }
+            } catch (syncErr) {
+              console.warn('[AlmasLibres] Sincronización diferida tras importar CSV:', syncErr);
+            }
+          }
+
+          updateHorseSelectDropdowns();
+          renderManadasBoard();
+          renderHorsesGrid();
+          renderTable();
+          updateMetrics();
+          updateBadges();
+          updateDiagnosticModalData();
+
+          showToast(`¡Planilla CSV importada! ${importedCount} padrinos, ${newHorsesCount} caballos y ${newReportsCount} tildes actualizados.`);
+        } catch (err: any) {
+          console.error(err);
+          alert('Error al procesar el archivo CSV: ' + (err.message || err));
+        }
+      }
+
+      // ==========================================
       // DIAGNÓSTICO Y RESPALDO COMPLETO
       // ==========================================
       function updateDiagnosticModalData() {
@@ -2343,6 +3004,9 @@ const supabaseAnonKey =
           diagDbUrl.textContent = activeSupabaseUrl || (isLiveDb ? 'Conectado a Supabase' : 'No configurado');
         }
 
+        if (inputDiagSupabaseUrl) inputDiagSupabaseUrl.value = localStorage.getItem('almas_supabase_url') || serverUrl || '';
+        if (inputDiagSupabaseKey) inputDiagSupabaseKey.value = localStorage.getItem('almas_supabase_anon_key') || serverKey || '';
+
         let localHorsesCount = 0;
         let localSponsorsCount = 0;
         try {
@@ -2352,11 +3016,67 @@ const supabaseAnonKey =
 
         if (diagHorsesTotal) diagHorsesTotal.textContent = `${horsesList.length} total`;
         if (diagHorsesLocal) diagHorsesLocal.textContent = `${localHorsesCount} en navegador`;
-        if (diagHorsesRemote) diagHorsesRemote.textContent = isLiveDb ? `${horsesList.length} sincronizados` : 'Supabase no conectado';
+        if (diagHorsesRemote) diagHorsesRemote.textContent = isLiveDb ? `${horsesList.length} en la base` : 'Supabase no conectado';
 
         if (diagSponsorsTotal) diagSponsorsTotal.textContent = `${sponsors.length} total`;
         if (diagSponsorsLocal) diagSponsorsLocal.textContent = `${localSponsorsCount} en navegador`;
-        if (diagSponsorsRemote) diagSponsorsRemote.textContent = isLiveDb ? `${sponsors.length} sincronizados` : 'Supabase no conectado';
+        if (diagSponsorsRemote) diagSponsorsRemote.textContent = isLiveDb ? `${sponsors.length} en la base` : 'Supabase no conectado';
+      }
+
+      async function testSupabaseConnection(targetUrl?: string, targetKey?: string) {
+        if (!diagTestResult) return;
+        diagTestResult.style.display = 'block';
+        diagTestResult.style.background = 'var(--bg-alt)';
+        diagTestResult.style.color = 'var(--text)';
+        diagTestResult.textContent = 'Probando conexión con Supabase...';
+
+        const url = targetUrl || activeSupabaseUrl;
+        const key = targetKey || activeSupabaseKey;
+
+        if (!url || !key) {
+          diagTestResult.style.background = '#ffe3e3';
+          diagTestResult.style.color = '#c92a2a';
+          diagTestResult.textContent = '✕ No hay URL o Clave anon configurada.';
+          return;
+        }
+
+        try {
+          const testClient = createClient(url, key);
+          const { count, error } = await testClient.from('caballos').select('*', { count: 'exact', head: true });
+          if (error) throw error;
+          diagTestResult.style.background = '#d3f9d8';
+          diagTestResult.style.color = '#2b8a3e';
+          diagTestResult.textContent = `✓ Conexión exitosa con Supabase (${count || 0} caballos encontrados).`;
+        } catch (err: any) {
+          diagTestResult.style.background = '#ffe3e3';
+          diagTestResult.style.color = '#c92a2a';
+          diagTestResult.textContent = `✕ Error conectando a Supabase: ${err.message || err}`;
+        }
+      }
+
+      async function saveSupabaseConfig() {
+        if (!inputDiagSupabaseUrl || !inputDiagSupabaseKey) return;
+        const newUrl = inputDiagSupabaseUrl.value.trim();
+        const newKey = inputDiagSupabaseKey.value.trim();
+
+        if (!newUrl || !newKey) {
+          alert('Por favor ingresá tanto la URL como la clave anon de Supabase.');
+          return;
+        }
+
+        localStorage.setItem('almas_supabase_url', newUrl);
+        localStorage.setItem('almas_supabase_anon_key', newKey);
+        activeSupabaseUrl = newUrl;
+        activeSupabaseKey = newKey;
+        supabase = createClient(newUrl, newKey);
+        isLiveDb = true;
+
+        updateDbStatus();
+        updateDiagnosticModalData();
+        await testSupabaseConnection(newUrl, newKey);
+        showToast('Credenciales guardadas y conexión actualizada');
+        await loadHorsesData();
+        await loadSponsorsData();
       }
 
       function openBackupModal() {
@@ -2515,6 +3235,27 @@ const supabaseAnonKey =
 
         btnExportCsv.addEventListener('click', exportToCsv);
 
+        // Importar Planilla CSV (desde barra superior y desde modal)
+        if (btnImportCsv && inputImportCsv) {
+          btnImportCsv.addEventListener('click', () => inputImportCsv.click());
+          inputImportCsv.addEventListener('change', () => {
+            if (inputImportCsv.files && inputImportCsv.files[0]) {
+              importFromCsvFile(inputImportCsv.files[0]);
+              inputImportCsv.value = '';
+            }
+          });
+        }
+
+        if (inputImportCsvBackup) {
+          inputImportCsvBackup.addEventListener('change', () => {
+            if (inputImportCsvBackup.files && inputImportCsvBackup.files[0]) {
+              importFromCsvFile(inputImportCsvBackup.files[0]);
+              inputImportCsvBackup.value = '';
+              closeBackupModal();
+            }
+          });
+        }
+
         // Modal de Respaldo y Diagnóstico
         const btnOpenBackupModal = document.getElementById('btnOpenBackupModal');
         if (btnOpenBackupModal) btnOpenBackupModal.addEventListener('click', openBackupModal);
@@ -2525,6 +3266,16 @@ const supabaseAnonKey =
         backupModal.addEventListener('click', (e) => {
           if (e.target === backupModal) closeBackupModal();
         });
+
+        if (btnTestDbConnection) {
+          btnTestDbConnection.addEventListener('click', () => {
+            testSupabaseConnection(inputDiagSupabaseUrl?.value, inputDiagSupabaseKey?.value);
+          });
+        }
+
+        if (btnSaveSupabaseCreds) {
+          btnSaveSupabaseCreds.addEventListener('click', saveSupabaseConfig);
+        }
 
         const btnExportFullJson = document.getElementById('btnExportFullJson');
         if (btnExportFullJson) btnExportFullJson.addEventListener('click', exportFullJsonBackup);
@@ -2545,7 +3296,7 @@ const supabaseAnonKey =
             btnForceResync.textContent = 'Sincronizando...';
             await loadHorsesData();
             await loadSponsorsData();
-            btnForceResync.innerHTML = '<span>🔄</span> Forzar Resincronización Completa';
+            btnForceResync.innerHTML = '<span>🔄</span> Forzar Resincronización Completa con Supabase';
             showToast('Sincronización completada');
           });
         }
